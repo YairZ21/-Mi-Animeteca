@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mi Animeteca</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app">
+
+  <div class="header">
+    <div class="title-block">
+      <h1>MI ANIMETECA</h1>
+      <div class="sub">Catálogo personal · lo que ya viste, ordenado y calificado</div>
+    </div>
+    <div class="count-badge" id="countBadge">
+      <b id="countNum">0</b>
+      títulos archivados
+    </div>
+  </div>
+
+  <div class="add-mode-row">
+    <button class="mode-tab active" id="tabSearch">Buscar anime</button>
+    <button class="mode-tab" id="tabManual">Agregar manualmente</button>
+  </div>
+
+  <div class="search-box" id="searchBox">
+    <input id="searchInput" type="text" placeholder="Buscar un anime para añadirlo (ej: Fullmetal Alchemist)" />
+    <button id="searchBtn">Buscar</button>
+  </div>
+  <div class="search-hint" id="searchHintText">Se busca en la base de datos pública de AniList. Elige el resultado correcto para añadirlo a tu archivo.</div>
+  <div class="search-status" id="searchStatus" style="display:none;"></div>
+  <div class="results" id="results"></div>
+
+  <div class="manual-form" id="manualForm">
+    <div class="manual-grid">
+      <div>
+        <img id="manualPreview" class="manual-preview" src="" alt="" style="display:none;">
+        <div class="file-row">
+          <label style="margin-top:10px;">Subir imagen desde tu dispositivo</label>
+          <input type="file" id="manualFile" accept="image/*">
+        </div>
+      </div>
+      <div>
+        <div class="field">
+          <label>Título *</label>
+          <input type="text" id="manualTitle" placeholder="Nombre del anime">
+        </div>
+        <div class="field">
+          <label>URL de imagen (opcional si subiste un archivo)</label>
+          <input type="url" id="manualImageUrl" placeholder="https://...">
+        </div>
+        <div class="field">
+          <label>Género(s) — separados por coma</label>
+          <input type="text" id="manualGenres" placeholder="Acción, Aventura, Fantasía">
+        </div>
+        <div class="manual-two-col">
+          <div class="field">
+            <label>Tipo</label>
+            <select id="manualType"></select>
+          </div>
+          <div class="field">
+            <label>Año de emisión</label>
+            <input type="text" inputmode="numeric" id="manualYear" placeholder="2024">
+          </div>
+        </div>
+        <div class="manual-two-col">
+          <div class="field">
+            <label>Episodios</label>
+            <input type="text" inputmode="numeric" id="manualEpisodes" placeholder="12">
+          </div>
+          <div class="field">
+            <label>Temporada</label>
+            <select id="manualSeasonNumber"></select>
+          </div>
+        </div>
+        <div class="field">
+          <label>Calificación (opcional)</label>
+          <select id="manualRating">
+            <option value="">Sin calificar</option>
+            <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+            <option value="4">4</option><option value="5">5</option><option value="6">6</option>
+            <option value="7">7</option><option value="8">8</option><option value="9">9</option>
+            <option value="10">10</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Sinopsis</label>
+          <textarea id="manualSynopsis" placeholder="Breve descripción del anime..."></textarea>
+        </div>
+        <div class="manual-actions">
+          <button class="btn-primary" id="manualSubmit">Añadir a mi animeteca</button>
+          <button class="btn-ghost" id="manualCancel">Cancelar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="sort-group" id="sortGroup">
+      <button class="sort-btn active" data-sort="alpha">A – Z</button>
+      <button class="sort-btn" data-sort="rating">Mejor valorados</button>
+      <button class="sort-btn" data-sort="recent">Añadidos recientemente</button>
+    </div>
+    <div class="filter-group">
+      <select id="genreFilter">
+        <option value="all">Todos los géneros</option>
+      </select>
+    </div>
+    <div class="backup-group">
+      <button class="backup-btn" id="shareBtn">Enviar por correo / Drive</button>
+      <button class="backup-btn" id="exportBtn">Exportar respaldo (.json)</button>
+      <button class="backup-btn" id="exportTxtBtn">Exportar lista (.txt)</button>
+      <button class="backup-btn" id="importBtn">Importar respaldo</button>
+      <input type="file" id="importFile" accept="application/json" style="display:none;">
+    </div>
+  </div>
+  <div class="search-hint" style="margin:-6px 0 10px;">Tu lista se guarda en este navegador. Para usarla en otro equipo o celular, envíate el respaldo por correo/Drive o expórtalo e impórtalo allá.</div>
+
+  <div class="rail" id="rail"></div>
+
+  <div id="listArea"></div>
+
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-card">
+    <button class="modal-close" id="modalClose">&times;</button>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const STORAGE_KEY = 'lista-anime';
+  let animeList = [];
+  let currentSort = 'alpha';
+  let currentGenre = 'all';
+  let loaded = false;
+
+  const el = {
+    input: document.getElementById('searchInput'),
+    searchBtn: document.getElementById('searchBtn'),
+    results: document.getElementById('results'),
+    searchStatus: document.getElementById('searchStatus'),
+    listArea: document.getElementById('listArea'),
+    countNum: document.getElementById('countNum'),
+    rail: document.getElementById('rail'),
+    sortGroup: document.getElementById('sortGroup'),
+    genreFilter: document.getElementById('genreFilter'),
+    shareBtn: document.getElementById('shareBtn'),
+    exportBtn: document.getElementById('exportBtn'),
+    exportTxtBtn: document.getElementById('exportTxtBtn'),
+    importBtn: document.getElementById('importBtn'),
+    importFile: document.getElementById('importFile'),
+    tabSearch: document.getElementById('tabSearch'),
+    tabManual: document.getElementById('tabManual'),
+    searchBox: document.getElementById('searchBox'),
+    searchHintText: document.getElementById('searchHintText'),
+    manualForm: document.getElementById('manualForm'),
+    manualPreview: document.getElementById('manualPreview'),
+    manualFile: document.getElementById('manualFile'),
+    manualTitle: document.getElementById('manualTitle'),
+    manualImageUrl: document.getElementById('manualImageUrl'),
+    manualGenres: document.getElementById('manualGenres'),
+    manualType: document.getElementById('manualType'),
+    manualYear: document.getElementById('manualYear'),
+    manualEpisodes: document.getElementById('manualEpisodes'),
+    manualSeasonNumber: document.getElementById('manualSeasonNumber'),
+    manualRating: document.getElementById('manualRating'),
+    manualSynopsis: document.getElementById('manualSynopsis'),
+    manualSubmit: document.getElementById('manualSubmit'),
+    manualCancel: document.getElementById('manualCancel'),
+    modalOverlay: document.getElementById('modalOverlay'),
+    modalContent: document.getElementById('modalContent'),
+    modalClose: document.getElementById('modalClose'),
+  };
+
+  function escapeHtml(str){
+    const d = document.createElement('div');
+    d.textContent = str == null ? '' : String(str);
+    return d.innerHTML;
+  }
+
+  function setStatus(msg, isError){
+    if(!msg){ el.searchStatus.style.display='none'; return; }
+    el.searchStatus.style.display='block';
+    el.searchStatus.textContent = msg;
+    el.searchStatus.className = 'search-status' + (isError ? ' error' : '');
+  }
+
+  // Splits a genre string on comma, semicolon, slash, or a dash surrounded
+  // by spaces — covers the different ways people naturally type multiple genres.
+  function splitGenres(str){
+    return String(str || '')
+      .split(/[,;/]+|\s-\s/)
+      .map(g => g.trim())
+      .filter(Boolean);
+  }
+
+  // ---------- Persistence (localStorage: works standalone, in any browser) ----------
+  async function loadList(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      animeList = raw ? JSON.parse(raw) : [];
+    }catch(e){
+      animeList = [];
+    }
+
+    // Fix older entries whose genres were saved as a single merged string
+    // (e.g. "Acción - Ciencia Ficción - Militar") instead of separate tags.
+    let migrated = false;
+    animeList.forEach(a => {
+      if(Array.isArray(a.genres) && a.genres.length === 1 && /\s-\s|\/|;/.test(a.genres[0])){
+        a.genres = splitGenres(a.genres[0]);
+        migrated = true;
+      }
+    });
+    if(migrated) saveList();
+
+    loaded = true;
+    render();
+
+    // Quietly fill in type/año/episodios for older entries added before
+    // this data was captured (e.g. anime added via search early on).
+    backfillMissingDetails();
+  }
+
+  const ANILIST_BY_MAL_ID_QUERY = 'query ($id: Int) { Media(idMal: $id, type: ANIME) { format episodes seasonYear status } }';
+
+  async function backfillMissingDetails(){
+    const targets = animeList.filter(a => typeof a.id === 'number' && (!a.type || !a.year || !a.episodes));
+    if(targets.length === 0) return;
+    let changed = false;
+    for(const a of targets){
+      try{
+        const resp = await fetch('https://graphql.anilist.co', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json', 'Accept':'application/json'},
+          body: JSON.stringify({query: ANILIST_BY_MAL_ID_QUERY, variables: {id: a.id}})
+        });
+        if(resp.ok){
+          const json = await resp.json();
+          const d = json && json.data && json.data.Media;
+          if(d){
+            if(!a.type && d.format){ a.type = d.format; changed = true; }
+            if(!a.year && d.seasonYear){ a.year = d.seasonYear; changed = true; }
+            if(!a.episodes && d.episodes){ a.episodes = d.episodes; changed = true; }
+            if(!a.status && d.status){ a.status = d.status; changed = true; }
+          }
+        }
+      }catch(e){
+        // Sin conexión o falló esta consulta puntual: seguimos con el resto en silencio.
+      }
+      await sleep(900); // ritmo suave para no chocar con el límite de la API pública
+    }
+    if(changed){
+      saveList();
+      render();
+      if(currentModalId){
+        const current = animeList.find(x => x.id === currentModalId);
+        if(current) openModal(current.id);
+      }
+    }
+  }
+
+  async function saveList(){
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(animeList));
+    }catch(e){
+      setStatus('No se pudo guardar el cambio en este navegador. Si el almacenamiento está lleno o bloqueado, usa "Exportar respaldo" para no perder tu lista.', true);
+    }
+  }
+
+  // ---------- Search (AniList GraphQL — más permisivo con CORS que Jikan/MAL,
+  // así que funciona mejor al abrir este archivo directamente desde el disco) ----------
+  let searching = false;
+
+  function sleep(ms){ return new Promise(res => setTimeout(res, ms)); }
+
+  function stripHtml(str){
+    if(!str) return '';
+    const div = document.createElement('div');
+    div.innerHTML = str;
+    return (div.textContent || div.innerText || '').trim();
+  }
+
+  const ANILIST_QUERY = 'query ($search: String) { Page(perPage: 8) { media(search: $search, type: ANIME, sort: SEARCH_MATCH) { id title { romaji english } coverImage { large } description(asHtml: false) seasonYear episodes format status genres } } }';
+
+  async function fetchAniList(q, attempt){
+    const resp = await fetch('https://graphql.anilist.co', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json', 'Accept':'application/json'},
+      body: JSON.stringify({query: ANILIST_QUERY, variables: {search: q}})
+    });
+    if(resp.status === 429){
+      if(attempt < 2){
+        await sleep(1500 * (attempt + 1));
+        return fetchAniList(q, attempt + 1);
+      }
+      throw new Error('rate-limit');
+    }
+    if(!resp.ok){
+      if(attempt < 1){
+        await sleep(800);
+        return fetchAniList(q, attempt + 1);
+      }
+      throw new Error('http-' + resp.status);
+    }
+    const json = await resp.json();
+    if(json.errors && json.errors.length){
+      throw new Error('api-error');
+    }
+    return (json.data && json.data.Page && json.data.Page.media) || [];
+  }
+
+  async function doSearch(){
+    const q = el.input.value.trim();
+    if(!q || searching) return;
+    if(q.length < 3){
+      setStatus('Escribe al menos 3 letras para buscar.', false);
+      return;
+    }
+    searching = true;
+    el.searchBtn.disabled = true;
+    el.results.innerHTML = '';
+    setStatus('Buscando "' + q + '"…', false);
+
+    try{
+      const media = await fetchAniList(q, 0);
+      if(media.length === 0){
+        setStatus('Sin resultados para "' + q + '". Prueba con otro título.', false);
+      } else {
+        setStatus('', false);
+        renderResults(media);
+      }
+    }catch(e){
+      let msg = 'No se pudo buscar en este momento. Inténtalo de nuevo en unos segundos.';
+      if(e && e.message === 'rate-limit'){
+        msg = 'Se hicieron demasiadas búsquedas seguidas. Espera unos 15-20 segundos y vuelve a intentar.';
+      } else if(e instanceof TypeError){
+        msg = 'No hay conexión a internet, o algo (antivirus, red corporativa, bloqueador de anuncios) está impidiendo la conexión. Si el problema sigue, usa "Agregar manualmente".';
+      }
+      setStatus(msg, true);
+    }finally{
+      searching = false;
+      el.searchBtn.disabled = false;
+    }
+  }
+
+  function renderResults(mediaList){
+    el.results.innerHTML = '';
+    mediaList.forEach(m => {
+      const title = (m.title && (m.title.english || m.title.romaji)) || 'Sin título';
+      const img = (m.coverImage && m.coverImage.large) || '';
+      const year = m.seasonYear || '—';
+      const eps = m.episodes || '?';
+      const card = document.createElement('div');
+      card.className = 'result-card';
+      card.innerHTML =
+        '<img src="' + escapeHtml(img) + '" alt="">' +
+        '<div>' +
+          '<div class="r-title">' + escapeHtml(title) + '</div>' +
+          '<div class="r-meta">' + escapeHtml(year) + ' · ' + escapeHtml(eps) + ' eps</div>' +
+          '<div class="r-add">+ Añadir a la animeteca</div>' +
+        '</div>';
+      card.addEventListener('click', () => addAnime(m));
+      el.results.appendChild(card);
+    });
+  }
+
+  function addAnime(m){
+    const id = 'al-' + m.id;
+    if(animeList.some(a => a.id === id)){
+      setStatus('Ese título ya está en tu animeteca.', false);
+      return;
+    }
+    const title = (m.title && (m.title.english || m.title.romaji)) || 'Sin título';
+    animeList.push({
+      id: id,
+      title: title,
+      image: (m.coverImage && m.coverImage.large) || '',
+      synopsis: stripHtml(m.description) || 'Sin sinopsis disponible.',
+      year: m.seasonYear || null,
+      episodes: m.episodes || null,
+      type: m.format || null,
+      status: m.status || null,
+      seasonNumber: null,
+      genres: Array.isArray(m.genres) ? m.genres.slice() : [],
+      rating: null,
+      addedAt: Date.now()
+    });
+    el.results.innerHTML = '';
+    el.input.value = '';
+    setStatus('"' + title + '" añadido a tu animeteca.', false);
+    saveList();
+    render();
+  }
+
+  function removeAnime(id){
+    animeList = animeList.filter(a => a.id !== id);
+    saveList();
+    render();
+  }
+
+  function setRating(id, value){
+    const a = animeList.find(a => a.id === id);
+    if(a){ a.rating = value; saveList(); render(); if(currentModalId === id) openModal(id); }
+  }
+
+  // ---------- Label translation helpers ----------
+  function translateType(t){
+    const map = {
+      TV:'TV Anime', Movie:'Película', OVA:'OVA', ONA:'ONA', Special:'Especial', Music:'Música',
+      MOVIE:'Película', SPECIAL:'Especial', MUSIC:'Música', TV_SHORT:'TV Anime'
+    };
+    return t ? (map[t] || t) : null;
+  }
+  function translateStatus(s){
+    const map = {
+      'Finished Airing':'Finalizado','Currently Airing':'En emisión','Not yet aired':'Próximamente',
+      FINISHED:'Finalizado', RELEASING:'En emisión', NOT_YET_RELEASED:'Próximamente', CANCELLED:'Cancelado', HIATUS:'En pausa'
+    };
+    return s ? (map[s] || s) : null;
+  }
+  const SEASON_ORDINALS = ['Primera','Segunda','Tercera','Cuarta','Quinta','Sexta','Séptima','Octava','Novena','Décima'];
+  function seasonOrdinalLabel(n){
+    const i = parseInt(n, 10);
+    return (i >= 1 && i <= SEASON_ORDINALS.length) ? SEASON_ORDINALS[i-1] + ' Temporada' : null;
+  }
+  function seasonOptionsHtml(selected){
+    let html = '<option value="">Sin especificar</option>';
+    SEASON_ORDINALS.forEach((label, idx) => {
+      const val = idx + 1;
+      html += '<option value="' + val + '"' + (String(selected) === String(val) ? ' selected' : '') + '>' + label + '</option>';
+    });
+    return html;
+  }
+  function typeOptionsHtml(selected){
+    const options = ['TV Anime','OVA','Especial','Película','ONA'];
+    let html = '<option value="">Sin especificar</option>';
+    options.forEach(opt => {
+      html += '<option value="' + opt + '"' + (selected === opt ? ' selected' : '') + '>' + opt + '</option>';
+    });
+    return html;
+  }
+
+  // ---------- Add mode tabs (buscar vs manual) ----------
+  el.tabSearch.addEventListener('click', () => {
+    el.tabSearch.classList.add('active');
+    el.tabManual.classList.remove('active');
+    el.searchBox.style.display = 'flex';
+    el.searchHintText.style.display = 'block';
+    el.manualForm.classList.remove('open');
+  });
+  el.tabManual.addEventListener('click', () => {
+    el.tabManual.classList.add('active');
+    el.tabSearch.classList.remove('active');
+    el.searchBox.style.display = 'none';
+    el.searchHintText.style.display = 'none';
+    el.results.innerHTML = '';
+    setStatus('', false);
+    el.manualForm.classList.add('open');
+  });
+
+  // ---------- Manual add ----------
+  let manualImageData = '';
+
+  el.manualFile.addEventListener('change', () => {
+    const file = el.manualFile.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      manualImageData = reader.result;
+      el.manualPreview.src = manualImageData;
+      el.manualPreview.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+  });
+
+  el.manualImageUrl.addEventListener('input', () => {
+    if(el.manualImageUrl.value.trim()){
+      manualImageData = '';
+      el.manualPreview.src = el.manualImageUrl.value.trim();
+      el.manualPreview.style.display = 'block';
+    }
+  });
+
+  el.manualType.innerHTML = typeOptionsHtml('');
+  el.manualSeasonNumber.innerHTML = seasonOptionsHtml('');
+
+  function resetManualForm(){
+    el.manualTitle.value = '';
+    el.manualImageUrl.value = '';
+    el.manualGenres.value = '';
+    el.manualType.value = '';
+    el.manualYear.value = '';
+    el.manualEpisodes.value = '';
+    el.manualSeasonNumber.value = '';
+    el.manualRating.value = '';
+    el.manualSynopsis.value = '';
+    el.manualFile.value = '';
+    manualImageData = '';
+    el.manualPreview.src = '';
+    el.manualPreview.style.display = 'none';
+  }
+
+  el.manualCancel.addEventListener('click', () => {
+    resetManualForm();
+    el.tabSearch.click();
+  });
+
+  el.manualSubmit.addEventListener('click', () => {
+    const title = el.manualTitle.value.trim();
+    if(!title){
+      setStatus('Escribe al menos el título del anime.', true);
+      return;
+    }
+    const image = manualImageData || el.manualImageUrl.value.trim();
+    const genres = splitGenres(el.manualGenres.value);
+    const rating = el.manualRating.value ? parseInt(el.manualRating.value, 10) : null;
+    const synopsis = el.manualSynopsis.value.trim() || 'Sin sinopsis disponible.';
+    const type = el.manualType.value || null;
+    const year = el.manualYear.value.trim() ? parseInt(el.manualYear.value, 10) : null;
+    const episodes = el.manualEpisodes.value.trim() ? parseInt(el.manualEpisodes.value, 10) : null;
+    const seasonNumber = el.manualSeasonNumber.value ? parseInt(el.manualSeasonNumber.value, 10) : null;
+
+    animeList.push({
+      id: 'm-' + Date.now(),
+      title: title,
+      image: image,
+      synopsis: synopsis,
+      year: year,
+      episodes: episodes,
+      type: type,
+      status: null,
+      seasonNumber: seasonNumber,
+      genres: genres,
+      rating: rating,
+      addedAt: Date.now()
+    });
+    saveList();
+    render();
+    resetManualForm();
+    setStatus('"' + title + '" añadido a tu animeteca.', false);
+    el.tabSearch.click();
+  });
+
+  // ---------- Detail / edit modal ----------
+  let currentModalId = null;
+  let modalEditing = false;
+
+  function openModal(id){
+    const a = animeList.find(x => x.id === id);
+    if(!a) return;
+    currentModalId = id;
+    modalEditing = false;
+    renderModal(a);
+    el.modalOverlay.classList.add('open');
+  }
+
+  function closeModal(){
+    el.modalOverlay.classList.remove('open');
+    currentModalId = null;
+    modalEditing = false;
+  }
+
+  el.modalClose.addEventListener('click', closeModal);
+  el.modalOverlay.addEventListener('click', e => {
+    if(e.target === el.modalOverlay) closeModal();
+  });
+
+  function renderModal(a){
+    if(modalEditing){
+      renderModalEdit(a);
+    } else {
+      renderModalView(a);
+    }
+  }
+
+  function renderModalView(a){
+    const badgeBits = [];
+    const type = translateType(a.type);
+    const status = translateStatus(a.status);
+    const seasonLabel = seasonOrdinalLabel(a.seasonNumber);
+    if(type) badgeBits.push(type);
+    if(a.year) badgeBits.push(a.year);
+    if(seasonLabel) badgeBits.push(seasonLabel);
+    if(status) badgeBits.push(status);
+    if(a.episodes) badgeBits.push(a.episodes + ' eps');
+
+    const genrePills = (a.genres && a.genres.length)
+      ? a.genres.map(g => '<span class="genre-pill">' + escapeHtml(g) + '</span>').join('')
+      : '<span class="genre-pill">Sin género</span>';
+
+    el.modalContent.innerHTML =
+      '<div class="modal-body">' +
+        '<img class="modal-poster" src="' + escapeHtml(a.image) + '" alt="">' +
+        '<div>' +
+          '<div class="modal-title">' + escapeHtml(a.title) + '</div>' +
+          (badgeBits.length ? '<div class="modal-badges">' + escapeHtml(badgeBits.join(' · ')) + '</div>' : '') +
+          '<div class="modal-genres">' + genrePills + '</div>' +
+          '<div class="modal-synopsis">' + escapeHtml(a.synopsis || 'Sin sinopsis disponible.') + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="modal-foot">' +
+        '<div class="modal-rating-block" id="modalRatingBlock"></div>' +
+        '<div class="modal-actions">' +
+          '<button class="btn-ghost" id="modalEditBtn">Editar</button>' +
+          '<button class="btn-ghost" id="modalDeleteBtn" style="color:var(--red);">Quitar del archivo</button>' +
+        '</div>' +
+      '</div>';
+
+    const ratingBlock = document.getElementById('modalRatingBlock');
+    renderStamp(ratingBlock, a);
+
+    document.getElementById('modalEditBtn').addEventListener('click', () => {
+      modalEditing = true;
+      renderModal(a);
+    });
+    document.getElementById('modalDeleteBtn').addEventListener('click', () => {
+      if(confirm('¿Quitar "' + a.title + '" de tu animeteca? Esta acción no se puede deshacer.')){
+        removeAnime(a.id);
+        closeModal();
+      }
+    });
+  }
+
+  function renderModalEdit(a){
+    el.modalContent.innerHTML =
+      '<div class="modal-body">' +
+        '<div>' +
+          '<img class="modal-poster" id="editPreview" src="' + escapeHtml(a.image) + '" alt="" style="margin-bottom:10px;">' +
+          '<div class="modal-edit-field">' +
+            '<label>URL de imagen</label>' +
+            '<input type="text" id="editImageUrl" value="' + escapeHtml(a.image) + '">' +
+          '</div>' +
+          '<div class="modal-edit-field">' +
+            '<label>O sube una imagen</label>' +
+            '<input type="file" id="editImageFile" accept="image/*">' +
+          '</div>' +
+        '</div>' +
+        '<div>' +
+          '<div class="modal-edit-field">' +
+            '<label>Título</label>' +
+            '<input type="text" id="editTitle" value="' + escapeHtml(a.title) + '">' +
+          '</div>' +
+          '<div class="modal-edit-field">' +
+            '<label>Género(s) — separados por coma</label>' +
+            '<input type="text" id="editGenres" value="' + escapeHtml((a.genres||[]).join(', ')) + '">' +
+          '</div>' +
+          '<div class="manual-two-col">' +
+            '<div class="modal-edit-field">' +
+              '<label>Tipo</label>' +
+              '<select id="editType">' + typeOptionsHtml(a.type || '') + '</select>' +
+            '</div>' +
+            '<div class="modal-edit-field">' +
+              '<label>Año de emisión</label>' +
+              '<input type="text" inputmode="numeric" id="editYear" value="' + escapeHtml(a.year || '') + '">' +
+            '</div>' +
+          '</div>' +
+          '<div class="manual-two-col">' +
+            '<div class="modal-edit-field">' +
+              '<label>Episodios</label>' +
+              '<input type="text" inputmode="numeric" id="editEpisodes" value="' + escapeHtml(a.episodes || '') + '">' +
+            '</div>' +
+            '<div class="modal-edit-field">' +
+              '<label>Temporada</label>' +
+              '<select id="editSeasonNumber">' + seasonOptionsHtml(a.seasonNumber || '') + '</select>' +
+            '</div>' +
+          '</div>' +
+          '<div class="modal-edit-field">' +
+            '<label>Sinopsis</label>' +
+            '<textarea id="editSynopsis">' + escapeHtml(a.synopsis || '') + '</textarea>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="modal-foot">' +
+        '<div class="modal-actions">' +
+          '<button class="btn-primary" id="modalSaveBtn">Guardar cambios</button>' +
+          '<button class="btn-ghost" id="modalCancelEditBtn">Cancelar</button>' +
+        '</div>' +
+      '</div>';
+
+    let editImageData = '';
+    document.getElementById('editImageFile').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        editImageData = reader.result;
+        document.getElementById('editPreview').src = editImageData;
+        document.getElementById('editImageUrl').value = '';
+      };
+      reader.readAsDataURL(file);
+    });
+    document.getElementById('editImageUrl').addEventListener('input', (e) => {
+      document.getElementById('editPreview').src = e.target.value;
+    });
+
+    document.getElementById('modalCancelEditBtn').addEventListener('click', () => {
+      modalEditing = false;
+      renderModal(a);
+    });
+
+    document.getElementById('modalSaveBtn').addEventListener('click', () => {
+      const newTitle = document.getElementById('editTitle').value.trim();
+      if(!newTitle){
+        alert('El título no puede quedar vacío.');
+        return;
+      }
+      a.title = newTitle;
+      a.image = editImageData || document.getElementById('editImageUrl').value.trim();
+      a.genres = splitGenres(document.getElementById('editGenres').value);
+      a.type = document.getElementById('editType').value || null;
+      a.year = document.getElementById('editYear').value.trim() ? parseInt(document.getElementById('editYear').value, 10) : null;
+      a.episodes = document.getElementById('editEpisodes').value.trim() ? parseInt(document.getElementById('editEpisodes').value, 10) : null;
+      a.seasonNumber = document.getElementById('editSeasonNumber').value ? parseInt(document.getElementById('editSeasonNumber').value, 10) : null;
+      a.synopsis = document.getElementById('editSynopsis').value.trim() || 'Sin sinopsis disponible.';
+      saveList();
+      render();
+      modalEditing = false;
+      renderModal(a);
+    });
+  }
+
+  // ---------- Rendering the collection ----------
+  function groupByLetter(list){
+    const groups = {};
+    list.forEach(a => {
+      const letter = (a.title || '?').trim().charAt(0).toUpperCase();
+      const key = /[A-Z]/.test(letter) ? letter : '#';
+      if(!groups[key]) groups[key] = [];
+      groups[key].push(a);
+    });
+    return groups;
+  }
+
+  function makeCard(a, index){
+    const card = document.createElement('div');
+    card.className = 'card';
+
+    const typeLabel = translateType(a.type);
+
+    card.innerHTML =
+      '<div class="poster-wrap">' +
+        '<img class="thumb" src="' + escapeHtml(a.image) + '" alt="">' +
+        '<div class="stamp-holder"></div>' +
+      '</div>' +
+      (typeLabel ? '<div class="type-chip">' + escapeHtml(typeLabel) + '</div>' : '') +
+      '<div class="card-title">' + escapeHtml(a.title) + '</div>';
+
+    // stamp / rating (overlaid on the poster, doesn't trigger the modal)
+    const holder = card.querySelector('.stamp-holder');
+    holder.addEventListener('click', e => e.stopPropagation());
+    renderStamp(holder, a);
+
+    // clicking anywhere else on the card opens the detail/edit view
+    card.addEventListener('click', () => openModal(a.id));
+
+    return card;
+  }
+
+  function renderStamp(holder, a){
+    holder.innerHTML = '';
+    const stamp = document.createElement('div');
+    stamp.className = 'stamp' + (a.rating ? '' : ' empty');
+    stamp.innerHTML = a.rating
+      ? '<div class="num">' + a.rating + '</div><div class="den">/ 10</div>'
+      : '<div class="num">Calif.</div>';
+    stamp.addEventListener('click', () => openRatePicker(holder, a));
+    holder.appendChild(stamp);
+  }
+
+  function openRatePicker(holder, a){
+    holder.innerHTML = '';
+    const picker = document.createElement('div');
+    picker.className = 'rate-picker';
+    for(let i=1;i<=10;i++){
+      const b = document.createElement('button');
+      b.textContent = i;
+      b.addEventListener('click', () => setRating(a.id, i));
+      picker.appendChild(b);
+    }
+    holder.appendChild(picker);
+  }
+
+  function populateGenreFilter(){
+    const genreSet = new Set();
+    animeList.forEach(a => (a.genres||[]).forEach(g => genreSet.add(g)));
+    const genres = [...genreSet].sort((a,b) => a.localeCompare(b,'es'));
+    const prevValue = el.genreFilter.value || 'all';
+    el.genreFilter.innerHTML = '<option value="all">Todos los géneros</option>' +
+      genres.map(g => '<option value="' + escapeHtml(g) + '">' + escapeHtml(g) + '</option>').join('');
+    el.genreFilter.value = genres.includes(prevValue) ? prevValue : 'all';
+    currentGenre = el.genreFilter.value;
+  }
+
+  function render(){
+    el.countNum.textContent = animeList.length;
+    el.listArea.innerHTML = '';
+    el.rail.innerHTML = '';
+
+    if(!loaded) return;
+
+    populateGenreFilter();
+
+    if(animeList.length === 0){
+      el.listArea.innerHTML =
+        '<div class="empty-state"><div class="big">TU ANIMETECA ESTÁ VACÍA</div>' +
+        'Busca un título arriba para empezar tu colección.</div>';
+      return;
+    }
+
+    let filtered = animeList.slice();
+    if(currentGenre !== 'all'){
+      filtered = filtered.filter(a => a.genres && a.genres.includes(currentGenre));
+    }
+
+    if(filtered.length === 0){
+      el.listArea.innerHTML =
+        '<div class="empty-state"><div class="big">SIN RESULTADOS PARA ESTE GÉNERO</div>' +
+        'Prueba con otro filtro o elige "Todos los géneros".</div>';
+      return;
+    }
+
+    let sorted = filtered.slice();
+    if(currentSort === 'alpha'){
+      sorted.sort((a,b) => a.title.localeCompare(b.title, 'es', {sensitivity:'base'}));
+    } else if(currentSort === 'rating'){
+      sorted.sort((a,b) => (b.rating||0) - (a.rating||0) || a.title.localeCompare(b.title,'es'));
+    } else if(currentSort === 'recent'){
+      sorted.sort((a,b) => b.addedAt - a.addedAt);
+    }
+
+    if(currentSort === 'alpha'){
+      const groups = groupByLetter(sorted);
+      const letters = Object.keys(groups).sort((a,b) => a.localeCompare(b,'es'));
+
+      // alphabet rail, full A-Z plus # for others
+      const fullAlpha = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+      fullAlpha.forEach(L => {
+        const a = document.createElement('a');
+        a.textContent = L;
+        if(groups[L]){
+          a.classList.add('has-items');
+          a.href = '#letter-' + L;
+        } else {
+          a.href = 'javascript:void(0)';
+        }
+        el.rail.appendChild(a);
+      });
+
+      let runningIndex = 0;
+      letters.forEach(L => {
+        const heading = document.createElement('div');
+        heading.className = 'letter-heading';
+        heading.id = 'letter-' + L;
+        heading.textContent = L;
+        el.listArea.appendChild(heading);
+
+        const grid = document.createElement('div');
+        grid.className = 'grid';
+        groups[L].forEach(a => {
+          grid.appendChild(makeCard(a, runningIndex));
+          runningIndex++;
+        });
+        el.listArea.appendChild(grid);
+      });
+    } else {
+      const grid = document.createElement('div');
+      grid.className = 'grid';
+      sorted.forEach((a, i) => grid.appendChild(makeCard(a, i)));
+      el.listArea.appendChild(grid);
+    }
+  }
+
+  // ---------- Events ----------
+  el.searchBtn.addEventListener('click', doSearch);
+  el.input.addEventListener('keydown', e => { if(e.key === 'Enter') doSearch(); });
+
+  el.sortGroup.addEventListener('click', e => {
+    const btn = e.target.closest('.sort-btn');
+    if(!btn) return;
+    currentSort = btn.dataset.sort;
+    [...el.sortGroup.children].forEach(b => b.classList.toggle('active', b === btn));
+    render();
+  });
+
+  el.genreFilter.addEventListener('change', () => {
+    currentGenre = el.genreFilter.value;
+    render();
+  });
+
+  // ---------- Export / Import backup ----------
+  function buildBackupBlob(){
+    const payload = {
+      app: 'mi-animeteca',
+      exportedAt: new Date().toISOString(),
+      items: animeList
+    };
+    return new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+  }
+
+  function buildTxtReport(){
+    const sorted = animeList.slice().sort((a,b) => a.title.localeCompare(b.title, 'es', {sensitivity:'base'}));
+    const lines = [
+      'MI ANIMETECA — lista de animes vistos',
+      'Exportado: ' + new Date().toLocaleString('es'),
+      'Total: ' + sorted.length + ' títulos',
+      ''.padEnd(50,'-'),
+      ''
+    ];
+    sorted.forEach(a => {
+      const genres = (a.genres && a.genres.length) ? a.genres.join(', ') : 'Sin género registrado';
+      const rating = a.rating ? a.rating + '/10' : 'Sin calificar';
+      lines.push(a.title);
+      lines.push('  Género: ' + genres);
+      lines.push('  Calificación: ' + rating);
+      lines.push('');
+    });
+    return new Blob([lines.join('\n')], {type:'text/plain'});
+  }
+
+  function downloadBlob(blob, filename){
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  el.exportBtn.addEventListener('click', () => {
+    if(animeList.length === 0){
+      setStatus('Tu animeteca está vacía, no hay nada que exportar todavía.', false);
+      return;
+    }
+    const stamp = new Date().toISOString().slice(0,10);
+    downloadBlob(buildBackupBlob(), 'animeteca-respaldo-' + stamp + '.json');
+    setStatus('Respaldo descargado: guarda ese archivo en un lugar seguro.', false);
+  });
+
+  el.exportTxtBtn.addEventListener('click', () => {
+    if(animeList.length === 0){
+      setStatus('Tu animeteca está vacía, no hay nada que exportar todavía.', false);
+      return;
+    }
+    const stamp = new Date().toISOString().slice(0,10);
+    downloadBlob(buildTxtReport(), 'animeteca-lista-' + stamp + '.txt');
+    setStatus('Lista descargada en formato de texto.', false);
+  });
+
+  el.shareBtn.addEventListener('click', async () => {
+    if(animeList.length === 0){
+      setStatus('Tu animeteca está vacía, no hay nada que enviar todavía.', false);
+      return;
+    }
+    const stamp = new Date().toISOString().slice(0,10);
+    const filename = 'animeteca-respaldo-' + stamp + '.json';
+    const blob = buildBackupBlob();
+
+    // Web Share API (funciona en la mayoría de celulares y en Chrome/Edge de escritorio):
+    // abre el mismo panel de "Compartir" del sistema, con Gmail, Drive, WhatsApp, etc.
+    if(navigator.canShare){
+      try{
+        const file = new File([blob], filename, {type:'application/json'});
+        if(navigator.canShare({files:[file]})){
+          await navigator.share({
+            files:[file],
+            title:'Respaldo de Mi Animeteca',
+            text:'Respaldo de mi lista de anime (' + animeList.length + ' títulos).'
+          });
+          setStatus('Listo, elige a dónde enviarlo desde el panel que se abrió.', false);
+          return;
+        }
+      }catch(e){
+        if(e && e.name === 'AbortError'){
+          return; // el usuario cerró el panel de compartir, no es un error real
+        }
+        // si falla, cae al respaldo por mailto abajo
+      }
+    }
+
+    // Alternativa si el navegador no soporta compartir archivos: abre el correo
+    // con un enlace de descarga preparado y el respaldo ya descargado aparte.
+    downloadBlob(blob, filename);
+    const subject = encodeURIComponent('Respaldo de Mi Animeteca');
+    const body = encodeURIComponent(
+      'Se descargó el archivo "' + filename + '" en tu carpeta de descargas.\n' +
+      'Adjúntalo manualmente a este correo antes de enviarlo (tu navegador no permite adjuntarlo automáticamente).'
+    );
+    window.location.href = 'mailto:?subject=' + subject + '&body=' + body;
+    setStatus('Tu navegador no admite compartir archivos directamente: se descargó el respaldo y se abrió tu correo para que lo adjuntes.', false);
+  });
+
+  el.importBtn.addEventListener('click', () => el.importFile.click());
+
+  el.importFile.addEventListener('change', () => {
+    const file = el.importFile.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try{
+        const parsed = JSON.parse(reader.result);
+        const items = Array.isArray(parsed) ? parsed : (parsed.items || []);
+        if(!Array.isArray(items) || items.length === 0){
+          setStatus('El archivo no tiene un formato de respaldo válido.', true);
+          return;
+        }
+        let added = 0, skipped = 0;
+        items.forEach(item => {
+          if(item && typeof item.id !== 'undefined' && item.title){
+            if(animeList.some(a => a.id === item.id)){
+              skipped++;
+            } else {
+              animeList.push({
+                id: item.id,
+                title: item.title,
+                image: item.image || '',
+                synopsis: item.synopsis || 'Sin sinopsis disponible.',
+                year: item.year || null,
+                episodes: item.episodes || null,
+                type: item.type || null,
+                status: item.status || null,
+                seasonNumber: item.seasonNumber || null,
+                genres: Array.isArray(item.genres) ? item.genres : [],
+                rating: item.rating || null,
+                addedAt: item.addedAt || Date.now()
+              });
+              added++;
+            }
+          }
+        });
+        saveList();
+        render();
+        setStatus('Respaldo importado: ' + added + ' añadidos, ' + skipped + ' ya existían.', false);
+      }catch(e){
+        setStatus('No se pudo leer el archivo. Asegúrate de que sea un respaldo exportado desde aquí.', true);
+      }
+      el.importFile.value = '';
+    };
+    reader.readAsText(file);
+  });
+
+  loadList();
+})();
+</script>
+</body>
+</html>
