@@ -1,22 +1,27 @@
+  /* ============================================================
+     VARIABLES DE COLOR GLOBALES
+     Cambia cualquier valor aquí y se actualiza en toda la app.
+     ============================================================ */
   :root{
-    --ink:#0c0e1a;
-    --ink-2:#151830;
-    --ink-3:#1f2340;
-    --paper:#e9ecf6;
-    --paper-2:#1f2438;
-    --line:#2a2f4d;
-    --line-2:#3a3f5f;
-    --red:#e2685f;
-    --accent:#2dd4bf;
-    --accent-hover:#253d3a;
-    --gold:#f4bb43;
-    --muted:#8a90ab;
-    --muted-dark:#565c78;
-    --shadow:rgba(0,0,0,.5);
+    --ink:#0c0e1a;          /* fondo general de la página */
+    --ink-2:#151830;        /* fondo de paneles: modal, tarjetas de resultados, formulario manual */
+    --ink-3:#1f2340;        /* fondo de elementos anidados: etiqueta de tipo, píldoras de género */
+    --paper:#e9ecf6;        /* color de texto principal (claro) sobre fondos oscuros */
+    --paper-2:#1f2438;      /* fondo de los botones del selector de calificación */
+    --line:#2a2f4d;         /* color de bordes normales */
+    --line-2:#3a3f5f;       /* color de bordes secundarios/más claros (hover, separadores) */
+    --red:#e2685f;          /* color del sello de calificación */
+    --accent:#2dd4bf;       /* turquesa: botones activos, enlaces, bordes en foco */
+    --accent-hover:#22b8a6; /* turquesa oscuro: estado hover de botones de acento */
+    --gold:#f4bb43;         /* dorado: calificación especial "obra maestra" */
+    --muted:#8a90ab;        /* texto secundario */
+    --muted-dark:#565c78;   /* texto terciario / placeholders */
+    --shadow:rgba(0,0,0,.5);/* sombra de tarjetas y del modal */
   }
 
   *{box-sizing:border-box;}
 
+  /* Fondo y tipografía base de toda la página */
   body{
     margin:0;
     background:var(--ink);
@@ -25,13 +30,16 @@
     min-height:100vh;
   }
 
+  /* Contenedor centrado que envuelve toda la app */
   .app{
     max-width:1180px;
     margin:0 auto;
     padding:28px 20px 80px;
   }
 
-  /* ---------- Header ---------- */
+  /* ============================================================
+     ENCABEZADO — título "MI ANIMETECA" y contador de títulos
+     ============================================================ */
   .header{
     display:flex;
     justify-content:space-between;
@@ -43,7 +51,7 @@
     margin-bottom:22px;
   }
 
-  .title-block h1{
+  .title-block h1{ /* "MI ANIMETECA" */
     font-family:'Bebas Neue',sans-serif;
     font-size:52px;
     letter-spacing:2px;
@@ -51,7 +59,7 @@
     line-height:1;
     color:var(--paper);
   }
-  .title-block .sub{
+  .title-block .sub{ /* subtítulo debajo del título */
     font-family:'IBM Plex Mono',monospace;
     font-size:12px;
     letter-spacing:2px;
@@ -60,13 +68,13 @@
     margin-top:6px;
   }
 
-  .count-badge{
+  .count-badge{ /* contador "N títulos archivados", esquina superior derecha */
     font-family:'IBM Plex Mono',monospace;
     font-size:13px;
     color:var(--muted);
     text-align:right;
   }
-  .count-badge b{
+  .count-badge b{ /* el número grande dentro del contador */
     display:block;
     font-family:'Bebas Neue',sans-serif;
     font-size:34px;
@@ -74,8 +82,10 @@
     letter-spacing:1px;
   }
 
-  /* ---------- Search ---------- */
-  .search-box{
+  /* ============================================================
+     BARRA DE BÚSQUEDA (pestaña "Buscar anime", caja de AniList)
+     ============================================================ */
+  .search-box{ /* input de texto + botón "Buscar" */
     display:flex;
     gap:10px;
     margin-bottom:8px;
@@ -96,7 +106,7 @@
   .search-box input:focus{border-color:var(--accent);}
   .search-box input::placeholder{color:var(--muted-dark);}
 
-  .search-box button{
+  .search-box button{ /* botón "Buscar" */
     background:var(--accent);
     color:var(--ink);
     border:none;
@@ -112,14 +122,14 @@
   .search-box button:disabled{opacity:.5;cursor:default;}
   .search-box button:hover:not(:disabled){background:var(--accent-hover);}
 
-  .search-hint{
+  .search-hint{ /* texto de ayuda pequeño (reutilizado también para mensajes puntuales) */
     font-family:'IBM Plex Mono',monospace;
     font-size:11px;
     color:var(--muted-dark);
     margin-bottom:18px;
   }
 
-  .search-status{
+  .search-status{ /* mensajes de estado: "Buscando...", errores, confirmaciones */
     font-family:'IBM Plex Mono',monospace;
     font-size:13px;
     color:var(--muted);
@@ -127,14 +137,17 @@
   }
   .search-status.error{color:var(--red);}
 
-  /* ---------- Search results ---------- */
+  /* ============================================================
+     RESULTADOS DE BÚSQUEDA — tarjetas que aparecen al buscar,
+     antes de abrir el panel de confirmación para agregar
+     ============================================================ */
   .results{
     display:grid;
     grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
     gap:12px;
     margin-bottom:26px;
   }
-  .result-card{
+  .result-card{ /* cada resultado individual de la búsqueda */
     display:flex;
     gap:10px;
     background:var(--ink-2);
@@ -145,7 +158,7 @@
     transition:border-color .15s;
   }
   .result-card:hover{border-color:var(--accent);}
-  .result-card img{
+  .result-card img{ /* miniatura del póster en el resultado */
     width:52px;height:74px;object-fit:cover;border-radius:2px;flex-shrink:0;
     background:#000;
   }
@@ -155,12 +168,12 @@
     line-height:1.3;
     margin-bottom:4px;
   }
-  .result-card .r-meta{
+  .result-card .r-meta{ /* año · episodios */
     font-family:'IBM Plex Mono',monospace;
     font-size:10.5px;
     color:var(--muted);
   }
-  .result-card .r-add{
+  .result-card .r-add{ /* texto "+ Añadir a la animeteca" */
     margin-top:6px;
     font-family:'IBM Plex Mono',monospace;
     font-size:10.5px;
@@ -169,15 +182,57 @@
     letter-spacing:.5px;
   }
 
-  /* ---------- Controls (sort + letters) ---------- */
+  /* ============================================================
+     BARRA DE CONTROLES — buscador discreto de tu colección,
+     orden (A-Z / calificación / recientes), tamaño de miniatura
+     y botones de respaldo. Todo en una sola fila que envuelve
+     si no cabe (flex-wrap).
+     ============================================================ */
   .controls{
     display:flex;
-    justify-content:space-between;
+    justify-content:flex-start;
     align-items:center;
-    gap:14px;
+    gap:18px;
     flex-wrap:wrap;
-    margin:26px 0 16px;
+    margin:0 0 14px;
   }
+  .controls.controls-spread{justify-content:space-between;margin-top:26px;} /* fila 1: orden a la izquierda, tamaño de vista a la derecha */
+
+  /* --- Buscador discreto dentro de tu colección ya agregada --- */
+  .library-search{
+    position:relative;
+    display:flex;
+    align-items:center;
+  }
+  .library-search svg{ /* ícono de lupa */
+    position:absolute;
+    left:10px;
+    width:13px;
+    height:13px;
+    color:var(--muted-dark);
+    pointer-events:none;
+  }
+  .library-search input{
+    width:320px;
+    max-width:100%;
+    background:transparent;
+    border:1px solid var(--line);
+    color:var(--muted);
+    font-family:'Inter',sans-serif;
+    font-size:12.5px;
+    padding:7px 10px 7px 30px;
+    border-radius:20px;
+    outline:none;
+    transition:border-color .15s, color .15s, width .15s;
+  }
+  .library-search input::placeholder{color:var(--muted-dark);}
+  .library-search input:focus{
+    border-color:var(--line-2);
+    color:var(--paper);
+    width:360px; /* se agranda un poco al escribir */
+  }
+
+  /* --- Botones de orden: "A-Z" / "Mejor valorados" / "Añadidos recientemente" --- */
   .sort-group{display:flex;gap:6px;}
   .sort-btn{
     font-family:'IBM Plex Mono',monospace;
@@ -191,33 +246,47 @@
     border-radius:20px;
     cursor:pointer;
   }
-  .sort-btn.active{
+  .sort-btn.active{ /* botón de orden actualmente seleccionado */
     background:var(--accent);
     color:var(--ink);
     border-color:var(--accent);
     font-weight:700;
   }
 
+  /* --- Filtro por género: la píldora ancha debajo de los controles --- */
   .filter-group{
-    display:flex;
+    position:relative;
+    display:inline-flex;
     align-items:center;
-    gap:8px;
-    flex-wrap:wrap;
+    width:320px;
+    max-width:100%;
   }
-  .filter-group select{
+  .filter-group select{ /* el <select> real, con flecha nativa ocultada */
+    width:100%;
+    appearance:none;
+    -webkit-appearance:none;
     font-family:'IBM Plex Mono',monospace;
-    font-size:11.5px;
+    font-size:12.5px;
     letter-spacing:.3px;
     background:var(--ink-2);
     border:1px solid var(--line);
     color:var(--paper);
-    padding:7px 10px;
-    border-radius:20px;
+    padding:7px 42px 7px 20px;
+    border-radius:999px;
     cursor:pointer;
     outline:none;
   }
   .filter-group select:focus{border-color:var(--accent);}
+  .filter-chevron{ /* la flecha personalizada (SVG) que reemplaza la nativa */
+    position:absolute;
+    right:16px;
+    width:16px;
+    height:16px;
+    color:var(--muted);
+    pointer-events:none;
+  }
 
+  /* --- Botones de respaldo: enviar / exportar json / exportar txt / importar --- */
   .backup-group{
     display:flex;
     gap:6px;
@@ -237,13 +306,14 @@
   }
   .backup-btn:hover{border-color:var(--accent);color:var(--accent);}
 
+  /* --- Índice alfabético A-Z (rail) que aparece con el orden "A-Z" --- */
   .rail{
     display:flex;
     flex-wrap:wrap;
     gap:4px;
     max-width:560px;
   }
-  .rail a{
+  .rail a{ /* cada letra del índice */
     font-family:'IBM Plex Mono',monospace;
     font-size:11px;
     color:var(--muted-dark);
@@ -251,10 +321,13 @@
     width:20px;
     text-align:center;
   }
-  .rail a.has-items{color:var(--accent);}
+  .rail a.has-items{color:var(--accent);} /* letra con al menos un anime */
   .rail a.has-items:hover{text-decoration:underline;}
 
-  /* ---------- Letter section ---------- */
+  /* ============================================================
+     ENCABEZADOS DE LETRA — divisores "A", "B", "C"... que agrupan
+     la colección cuando el orden es alfabético
+     ============================================================ */
   .letter-heading{
     font-family:'Bebas Neue',sans-serif;
     font-size:28px;
@@ -265,13 +338,50 @@
     margin:34px 0 16px;
   }
 
+  /* ============================================================
+     CUADRÍCULA PRINCIPAL — donde se listan las tarjetas de anime.
+     Las clases .size-medium / .size-small cambian el tamaño según
+     el botón de vista elegido (ver .view-group más abajo).
+     ============================================================ */
   .grid{
     display:grid;
     grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
     gap:20px;
   }
+  .grid.size-medium{ /* vista "miniatura mediana" */
+    grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+    gap:14px;
+  }
+  .grid.size-small{ /* vista "miniatura pequeña" */
+    grid-template-columns:repeat(auto-fill,minmax(100px,1fr));
+    gap:10px;
+  }
 
-  /* ---------- Catalog card ---------- */
+  /* --- Botones para elegir el tamaño de miniatura (grande/mediana/pequeña) --- */
+  .view-group{display:flex;gap:6px;}
+  .view-btn{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    width:34px;
+    height:32px;
+    background:transparent;
+    border:1px solid var(--line);
+    color:var(--muted);
+    border-radius:6px;
+    cursor:pointer;
+  }
+  .view-btn.active{ /* tamaño de vista actualmente elegido */
+    background:var(--accent);
+    border-color:var(--accent);
+    color:var(--ink);
+  }
+  .view-btn svg{width:16px;height:16px;}
+
+  /* ============================================================
+     TARJETA DE ANIME (vista principal) — póster + etiqueta de
+     tipo + título + sello de calificación superpuesto
+     ============================================================ */
   .card{
     background:var(--ink-2);
     border:1px solid var(--line);
@@ -285,10 +395,10 @@
   }
   .card:hover{border-color:var(--accent);}
 
-  .poster-wrap{
+  .poster-wrap{ /* envuelve la imagen para poder superponer el sello encima */
     position:relative;
   }
-  .poster-wrap .stamp-holder{
+  .poster-wrap .stamp-holder{ /* contenedor del sello, flota sobre la esquina del póster */
     position:absolute;
     top:8px;
     right:8px;
@@ -298,10 +408,10 @@
     padding:3px;
   }
   .poster-wrap .stamp-holder:empty{display:none;}
-  .poster-wrap .rate-picker{
-    width:132px;
+  .poster-wrap .rate-picker{ /* ancho del selector de calificación cuando se abre sobre el póster */
+    width:165px;
   }
-  .card .thumb{
+  .card .thumb{ /* imagen del póster */
     width:100%;
     aspect-ratio:2/3;
     object-fit:cover;
@@ -309,7 +419,7 @@
     background:#00000033;
   }
 
-  .type-chip{
+  .type-chip{ /* etiqueta "TV ANIME / OVA / PELÍCULA..." debajo del póster, alineada a la derecha */
     display:inline-block;
     width:fit-content;
     align-self:flex-end;
@@ -326,7 +436,7 @@
     margin:12px 14px 6px;
   }
 
-  .card-title{
+  .card-title{ /* título del anime, debajo de la etiqueta de tipo */
     font-family:'Inter',sans-serif;
     font-weight:600;
     font-size:15px;
@@ -335,7 +445,10 @@
     padding:0 14px 16px;
   }
 
-  /* stamp */
+  /* ============================================================
+     SELLO DE CALIFICACIÓN — el círculo rojo tipo estampa que
+     muestra la nota (o "✦" para la marca especial "obra maestra")
+     ============================================================ */
   .stamp{
     width:52px;height:52px;
     border-radius:50%;
@@ -352,18 +465,56 @@
     user-select:none;
     flex-shrink:0;
   }
-  .stamp .num{font-size:20px;font-weight:700;line-height:1;}
-  .stamp .den{font-size:8px;letter-spacing:.5px;}
-  .stamp.empty{border-style:dashed;color:var(--muted-dark);}
+  .stamp .num{font-size:20px;font-weight:700;line-height:1;} /* el número de la calificación */
+  .stamp .den{font-size:8px;letter-spacing:.5px;} /* el "/ 10" debajo del número */
+  .stamp.empty{border-style:dashed;color:var(--muted-dark);} /* aún sin calificar */
   .stamp.empty .num{font-size:10px;}
+  .stamp.special{border-style:solid;border-color:var(--gold);color:var(--gold);} /* calificación "obra maestra" */
+  .stamp .special-num{font-size:24px;}
 
+  /* --- Ajustes de tamaño de la tarjeta según la vista elegida (mediana/pequeña) --- */
+  .grid.size-medium .card-title{font-size:12.5px;padding:0 10px 12px;}
+  .grid.size-medium .type-chip{font-size:9px;padding:3px 9px;margin:9px 10px 5px;}
+  .grid.size-medium .stamp{width:40px;height:40px;border-width:2px;}
+  .grid.size-medium .stamp .num{font-size:15px;}
+  .grid.size-medium .stamp .special-num{font-size:17px;}
+  .grid.size-medium .stamp .den{font-size:6.5px;}
+  .grid.size-medium .stamp.empty .num{font-size:8px;}
+  .grid.size-medium .poster-wrap .stamp-holder{top:5px;right:5px;}
+  .grid.size-medium .poster-wrap .rate-picker{width:132px;}
+  .grid.size-medium .rate-picker button{font-size:9px;padding:3px 0;}
+
+  .grid.size-small .card-title{
+    font-size:11px;
+    padding:0 8px 10px;
+    display:-webkit-box;
+    -webkit-line-clamp:1;
+    -webkit-box-orient:vertical;
+    overflow:hidden;
+  }
+  .grid.size-small .type-chip{display:none;} /* se oculta para no saturar la miniatura pequeña */
+  .grid.size-small .stamp{width:30px;height:30px;border-width:2px;}
+  .grid.size-small .stamp .num{font-size:11px;}
+  .grid.size-small .stamp .special-num{font-size:13px;}
+  .grid.size-small .stamp .den{display:none;}
+  .grid.size-small .stamp.empty .num{font-size:7px;}
+  .grid.size-small .poster-wrap .stamp-holder{top:4px;right:4px;padding:2px;border-radius:7px;}
+  .grid.size-small .poster-wrap .rate-picker{width:112px;}
+  .grid.size-small .rate-picker button{font-size:8px;padding:2px 0;}
+
+  /* ============================================================
+     SELECTOR DE CALIFICACIÓN (grilla de botones 1 a 10, con
+     medios puntos, que se abre al tocar el sello). Se usa tanto
+     en la tarjeta principal como en el modal de detalle y en el
+     panel de "agregar".
+     ============================================================ */
   .rate-picker{
     display:grid;
-    grid-template-columns:repeat(5,1fr);
+    grid-template-columns:repeat(4,1fr);
     gap:4px;
     width:100%;
   }
-  .rate-picker button{
+  .rate-picker button{ /* cada número/opción de calificación */
     font-family:'IBM Plex Mono',monospace;
     font-size:11px;
     font-weight:700;
@@ -375,8 +526,24 @@
     cursor:pointer;
   }
   .rate-picker button:hover{background:var(--red);color:var(--paper);border-color:var(--red);}
+  .rate-picker button.selected{background:var(--red);color:var(--paper);border-color:var(--red);} /* opción ya elegida */
+  .rate-picker button.special-option{ /* el botón "✦ obra maestra", ocupa toda la fila */
+    grid-column:span 4;
+    border-color:var(--gold);
+    color:var(--gold);
+    font-size:14px;
+  }
+  .rate-picker button.special-option:hover,
+  .rate-picker button.special-option.selected{
+    background:var(--gold);
+    color:var(--ink);
+    border-color:var(--gold);
+  }
 
-  /* ---------- empty state ---------- */
+  /* ============================================================
+     ESTADO VACÍO — mensaje cuando la colección o un filtro no
+     tiene resultados
+     ============================================================ */
   .empty-state{
     text-align:center;
     padding:70px 20px;
@@ -387,7 +554,7 @@
     border-radius:6px;
     margin-top:20px;
   }
-  .empty-state .big{
+  .empty-state .big{ /* título grande dentro del estado vacío */
     font-family:'Bebas Neue',sans-serif;
     font-size:30px;
     color:var(--paper);
@@ -395,13 +562,18 @@
     margin-bottom:10px;
   }
 
+  /* Ajustes para pantallas angostas (celular) */
   @media (max-width:640px){
     .title-block h1{font-size:38px;}
     .card .thumb{height:190px;}
   }
 
-  /* ---------- Manual add form ---------- */
-  .add-mode-row{
+  /* ============================================================
+     FORMULARIO "AGREGAR MANUALMENTE" — pestañas Buscar/Manual y
+     los campos del formulario (título, imagen, género, tipo,
+     año, episodios, temporada, calificación, sinopsis)
+     ============================================================ */
+  .add-mode-row{ /* fila con las dos pestañas: "Buscar anime" / "Agregar manualmente" */
     display:flex;
     gap:8px;
     margin-bottom:10px;
@@ -418,14 +590,14 @@
     border-radius:20px;
     cursor:pointer;
   }
-  .mode-tab.active{
+  .mode-tab.active{ /* pestaña actualmente seleccionada */
     background:var(--accent);
     border-color:var(--accent);
     color:var(--ink);
     font-weight:700;
   }
 
-  .manual-form{
+  .manual-form{ /* panel completo del formulario manual (oculto hasta elegir esa pestaña) */
     background:var(--ink-2);
     border:1px solid var(--line);
     border-radius:6px;
@@ -434,7 +606,7 @@
     display:none;
   }
   .manual-form.open{display:block;}
-  .manual-grid{
+  .manual-grid{ /* columna de la vista previa de imagen + columna de campos */
     display:grid;
     grid-template-columns:120px 1fr;
     gap:14px;
@@ -465,14 +637,14 @@
   .manual-form input:focus,
   .manual-form textarea:focus,
   .manual-form select:focus{border-color:var(--accent);}
-  .manual-form textarea{resize:vertical;min-height:70px;}
+  .manual-form textarea{resize:vertical;min-height:70px;} /* campo de sinopsis */
   .manual-form .field{margin-bottom:14px;}
-  .manual-two-col{
+  .manual-two-col{ /* pares de campos lado a lado: Tipo/Año, Episodios/Temporada */
     display:grid;
     grid-template-columns:1fr 1fr;
     gap:14px;
   }
-  .manual-preview{
+  .manual-preview{ /* vista previa de la imagen subida o pegada por URL */
     width:100px;
     height:140px;
     object-fit:cover;
@@ -481,19 +653,19 @@
     border:1px dashed var(--line-2);
     display:block;
   }
-  .manual-form .file-row{
+  .manual-form .file-row{ /* texto "Subir imagen desde tu dispositivo" + input de archivo */
     font-family:'IBM Plex Mono',monospace;
     font-size:10.5px;
     color:var(--muted-dark);
     margin-top:6px;
   }
   .manual-form .file-row input{font-size:11px;color:var(--muted);}
-  .manual-actions{
+  .manual-actions{ /* botones "Añadir a mi animeteca" / "Cancelar" */
     display:flex;
     gap:10px;
     margin-top:6px;
   }
-  .btn-primary{
+  .btn-primary{ /* botón de acción principal (dorado/turquesa, relleno) — se reutiliza en varios formularios */
     background:var(--accent);
     color:var(--ink);
     border:none;
@@ -507,7 +679,7 @@
     cursor:pointer;
   }
   .btn-primary:hover{background:var(--accent-hover);}
-  .btn-ghost{
+  .btn-ghost{ /* botón secundario, solo borde — "Cancelar", "Editar", "Quitar" */
     background:transparent;
     border:1px solid var(--line-2);
     color:var(--muted);
@@ -520,8 +692,13 @@
     cursor:pointer;
   }
 
-  /* ---------- Detail / edit modal ---------- */
-  .modal-overlay{
+  /* ============================================================
+     MODAL DE DETALLE / EDICIÓN — se abre al hacer clic en una
+     tarjeta ya agregada. Muestra toda la información y permite
+     editarla o quitar el anime. También se reutiliza (con otro
+     contenido) como panel de confirmación al agregar por búsqueda.
+     ============================================================ */
+  .modal-overlay{ /* fondo oscuro semitransparente que cubre toda la pantalla */
     display:none;
     position:fixed;
     inset:0;
@@ -534,7 +711,7 @@
   }
   .modal-overlay.open{display:flex;}
 
-  .modal-card{
+  .modal-card{ /* el panel central del modal */
     background:var(--ink-2);
     border:1px solid var(--line-2);
     border-radius:10px;
@@ -544,7 +721,7 @@
     position:relative;
     box-shadow:0 20px 60px rgba(0,0,0,.6);
   }
-  .modal-close{
+  .modal-close{ /* botón "×" para cerrar el modal */
     position:absolute;
     top:14px;
     right:16px;
@@ -557,19 +734,19 @@
   }
   .modal-close:hover{color:var(--paper);}
 
-  .modal-body{
+  .modal-body{ /* columna del póster + columna de información */
     display:grid;
     grid-template-columns:190px 1fr;
     gap:24px;
   }
-  .modal-poster{
+  .modal-poster{ /* imagen del póster dentro del modal */
     width:100%;
     height:270px;
     object-fit:cover;
     border-radius:6px;
     background:#00000044;
   }
-  .modal-title{
+  .modal-title{ /* título del anime dentro del modal */
     font-family:'Inter',sans-serif;
     font-weight:700;
     font-size:26px;
@@ -577,19 +754,19 @@
     line-height:1.2;
     margin-bottom:8px;
   }
-  .modal-badges{
+  .modal-badges{ /* línea "TV Anime · 2024 · Primera Temporada · Finalizado" */
     font-family:'IBM Plex Mono',monospace;
     font-size:12px;
     color:var(--muted);
     margin-bottom:14px;
   }
-  .modal-genres{
+  .modal-genres{ /* fila de píldoras de género */
     display:flex;
     flex-wrap:wrap;
     gap:8px;
     margin-bottom:14px;
   }
-  .genre-pill{
+  .genre-pill{ /* cada etiqueta individual de género */
     background:var(--ink-3);
     border:1px solid var(--line-2);
     color:var(--paper);
@@ -597,7 +774,7 @@
     padding:5px 13px;
     border-radius:20px;
   }
-  .modal-synopsis{
+  .modal-synopsis{ /* caja de la sinopsis, con scroll si es muy larga */
     font-size:13.5px;
     line-height:1.6;
     color:#c8cad9;
@@ -609,7 +786,7 @@
   .modal-synopsis::-webkit-scrollbar{width:6px;}
   .modal-synopsis::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:3px;}
 
-  .modal-foot{
+  .modal-foot{ /* fila inferior del modal: sello de calificación + botones de acción */
     display:flex;
     align-items:center;
     justify-content:space-between;
@@ -619,9 +796,10 @@
     padding-top:16px;
     margin-top:6px;
   }
-  .modal-rating-block{display:flex;align-items:center;gap:12px;}
-  .modal-actions{display:flex;gap:10px;flex-wrap:wrap;}
+  .modal-rating-block{display:flex;align-items:center;gap:12px;} /* contenedor del sello dentro del modal */
+  .modal-actions{display:flex;gap:10px;flex-wrap:wrap;} /* botones "Editar" / "Quitar del archivo" */
 
+  /* --- Campos del modo edición (cuando tocas "Editar" en el modal) --- */
   .modal-edit-field{margin-bottom:12px;}
   .modal-edit-field label{
     display:block;
@@ -644,8 +822,9 @@
     font-size:13.5px;
     outline:none;
   }
-  .modal-edit-field textarea{min-height:90px;resize:vertical;}
+  .modal-edit-field textarea{min-height:90px;resize:vertical;} /* campo de sinopsis editable */
 
+  /* Ajustes del modal para pantallas angostas (celular) */
   @media (max-width:560px){
     .modal-body{grid-template-columns:1fr;}
     .modal-poster{height:220px;}

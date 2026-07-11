@@ -14,6 +14,7 @@
 
 <div class="app">
 
+  <!-- Encabezado: título de la app y contador de títulos guardados -->
   <div class="header">
     <div class="title-block">
       <h1>MI ANIMETECA</h1>
@@ -25,19 +26,21 @@
     </div>
   </div>
 
+  <!-- Pestañas para elegir cómo agregar un anime: por búsqueda o a mano -->
   <div class="add-mode-row">
     <button class="mode-tab active" id="tabSearch">Buscar anime</button>
     <button class="mode-tab" id="tabManual">Agregar manualmente</button>
   </div>
 
+  <!-- Modo "Buscar anime": caja de búsqueda (AniList) + resultados -->
   <div class="search-box" id="searchBox">
     <input id="searchInput" type="text" placeholder="Buscar un anime para añadirlo (ej: Fullmetal Alchemist)" />
     <button id="searchBtn">Buscar</button>
   </div>
-  <div class="search-hint" id="searchHintText">Se busca en la base de datos pública de AniList. Elige el resultado correcto para añadirlo a tu archivo.</div>
   <div class="search-status" id="searchStatus" style="display:none;"></div>
-  <div class="results" id="results"></div>
+  <div class="results" id="results"></div><!-- aquí se insertan las tarjetas de resultados al buscar -->
 
+  <!-- Modo "Agregar manualmente": formulario completo sin depender de internet -->
   <div class="manual-form" id="manualForm">
     <div class="manual-grid">
       <div>
@@ -63,7 +66,7 @@
         <div class="manual-two-col">
           <div class="field">
             <label>Tipo</label>
-            <select id="manualType"></select>
+            <select id="manualType"></select><!-- opciones cargadas por JS: typeOptionsHtml() -->
           </div>
           <div class="field">
             <label>Año de emisión</label>
@@ -77,18 +80,12 @@
           </div>
           <div class="field">
             <label>Temporada</label>
-            <select id="manualSeasonNumber"></select>
+            <select id="manualSeasonNumber"></select><!-- opciones cargadas por JS: seasonOptionsHtml() -->
           </div>
         </div>
         <div class="field">
           <label>Calificación (opcional)</label>
-          <select id="manualRating">
-            <option value="">Sin calificar</option>
-            <option value="1">1</option><option value="2">2</option><option value="3">3</option>
-            <option value="4">4</option><option value="5">5</option><option value="6">6</option>
-            <option value="7">7</option><option value="8">8</option><option value="9">9</option>
-            <option value="10">10</option>
-          </select>
+          <select id="manualRating"></select><!-- opciones cargadas por JS: ratingOptionsHtml() -->
         </div>
         <div class="field">
           <label>Sinopsis</label>
@@ -102,17 +99,28 @@
     </div>
   </div>
 
-  <div class="controls">
-    <div class="sort-group" id="sortGroup">
+  <!-- Fila 1: orden de la colección (izquierda) y tamaño de miniatura (derecha) -->
+  <div class="controls controls-spread">
+    <div class="sort-group" id="sortGroup"><!-- orden: alfabético / calificación / recientes -->
       <button class="sort-btn active" data-sort="alpha">A – Z</button>
       <button class="sort-btn" data-sort="rating">Mejor valorados</button>
       <button class="sort-btn" data-sort="recent">Añadidos recientemente</button>
     </div>
-    <div class="filter-group">
-      <select id="genreFilter">
-        <option value="all">Todos los géneros</option>
-      </select>
+    <div class="view-group" id="viewGroup"><!-- tamaño de miniatura: grande / mediana / pequeña -->
+      <button class="view-btn active" data-view="large" title="Miniatura grande">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg>
+      </button>
+      <button class="view-btn" data-view="medium" title="Miniatura mediana">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="6" height="6" rx="1"/><rect x="9" y="2" width="6" height="6" rx="1"/><rect x="16" y="2" width="6" height="6" rx="1"/><rect x="2" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/><rect x="16" y="9" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="9" y="16" width="6" height="6" rx="1"/><rect x="16" y="16" width="6" height="6" rx="1"/></svg>
+      </button>
+      <button class="view-btn" data-view="small" title="Miniatura pequeña">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="1" width="4" height="4"/><rect x="7" y="1" width="4" height="4"/><rect x="13" y="1" width="4" height="4"/><rect x="19" y="1" width="4" height="4"/><rect x="1" y="7" width="4" height="4"/><rect x="7" y="7" width="4" height="4"/><rect x="13" y="7" width="4" height="4"/><rect x="19" y="7" width="4" height="4"/><rect x="1" y="13" width="4" height="4"/><rect x="7" y="13" width="4" height="4"/><rect x="13" y="13" width="4" height="4"/><rect x="19" y="13" width="4" height="4"/></svg>
+      </button>
     </div>
+  </div>
+
+  <!-- Fila 2: enviar / exportar / importar respaldo de la colección -->
+  <div class="controls">
     <div class="backup-group">
       <button class="backup-btn" id="shareBtn">Enviar por correo / Drive</button>
       <button class="backup-btn" id="exportBtn">Exportar respaldo (.json)</button>
@@ -121,18 +129,33 @@
       <input type="file" id="importFile" accept="application/json" style="display:none;">
     </div>
   </div>
-  <div class="search-hint" style="margin:-6px 0 10px;">Tu lista se guarda en este navegador. Para usarla en otro equipo o celular, envíate el respaldo por correo/Drive o expórtalo e impórtalo allá.</div>
 
-  <div class="rail" id="rail"></div>
+  <!-- Fila 3: buscador discreto de tu colección junto al filtro por género (píldora) -->
+  <div class="controls">
+    <div class="library-search"><!-- buscador discreto dentro de tu colección -->
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="librarySearchInput" placeholder="Buscar en tu lista…">
+    </div>
+    <div class="filter-group">
+      <select id="genreFilter">
+        <option value="all">Todos los géneros</option>
+      </select>
+      <svg class="filter-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+  </div>
 
-  <div id="listArea"></div>
+  <div class="rail" id="rail"></div><!-- índice alfabético A-Z, solo visible con orden "A-Z" -->
+
+  <div id="listArea"></div><!-- aquí se dibuja toda la cuadrícula de tarjetas (función render()) -->
 
 </div>
 
+<!-- Modal reutilizable: detalle/edición de un anime YA agregado, y también
+     el panel de confirmación (tipo/temporada/calificación) al agregar uno nuevo -->
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal-card">
     <button class="modal-close" id="modalClose">&times;</button>
-    <div id="modalContent"></div>
+    <div id="modalContent"></div><!-- contenido dinámico: ver renderModalView/renderModalEdit/renderAddPanel -->
   </div>
 </div>
 
@@ -142,6 +165,8 @@
   let animeList = [];
   let currentSort = 'alpha';
   let currentGenre = 'all';
+  let currentView = localStorage.getItem('vista-animeteca') || 'large';
+  let libraryQuery = '';
   let loaded = false;
 
   const el = {
@@ -154,6 +179,8 @@
     rail: document.getElementById('rail'),
     sortGroup: document.getElementById('sortGroup'),
     genreFilter: document.getElementById('genreFilter'),
+    viewGroup: document.getElementById('viewGroup'),
+    librarySearchInput: document.getElementById('librarySearchInput'),
     shareBtn: document.getElementById('shareBtn'),
     exportBtn: document.getElementById('exportBtn'),
     exportTxtBtn: document.getElementById('exportTxtBtn'),
@@ -162,7 +189,6 @@
     tabSearch: document.getElementById('tabSearch'),
     tabManual: document.getElementById('tabManual'),
     searchBox: document.getElementById('searchBox'),
-    searchHintText: document.getElementById('searchHintText'),
     manualForm: document.getElementById('manualForm'),
     manualPreview: document.getElementById('manualPreview'),
     manualFile: document.getElementById('manualFile'),
@@ -230,6 +256,10 @@
     // Quietly fill in type/año/episodios for older entries added before
     // this data was captured (e.g. anime added via search early on).
     backfillMissingDetails();
+
+    // Traduce al español las sinopsis que quedaron en su idioma original
+    // (animes agregados antes de esta función, o si la traducción falló al agregarlos).
+    backfillSynopsisTranslation();
   }
 
   const ANILIST_BY_MAL_ID_QUERY = 'query ($id: Int) { Media(idMal: $id, type: ANIME) { format episodes seasonYear status } }';
@@ -270,6 +300,33 @@
     }
   }
 
+  async function backfillSynopsisTranslation(){
+    const targets = animeList.filter(a => !isManualId(a.id) && a.synopsis && !a.synopsisEs);
+    if(targets.length === 0) return;
+    let changed = false;
+    for(const a of targets){
+      try{
+        const translated = await translateToSpanish(a.synopsis);
+        if(translated){
+          a.synopsis = translated;
+          a.synopsisEs = true;
+          changed = true;
+        }
+      }catch(e){
+        // Se reintenta la próxima vez que se abra el archivo.
+      }
+      await sleep(700);
+    }
+    if(changed){
+      saveList();
+      render();
+      if(currentModalId){
+        const current = animeList.find(x => x.id === currentModalId);
+        if(current) openModal(current.id);
+      }
+    }
+  }
+
   async function saveList(){
     try{
       localStorage.setItem(STORAGE_KEY, JSON.stringify(animeList));
@@ -289,6 +346,24 @@
     const div = document.createElement('div');
     div.innerHTML = str;
     return (div.textContent || div.innerText || '').trim();
+  }
+
+  // Traduce texto al español usando el endpoint público de Google Translate
+  // (sin necesidad de API key). Si falla, quien llame debe capturar el error
+  // y quedarse con el texto original.
+  async function translateToSpanish(text){
+    if(!text) return text;
+    const resp = await fetch(
+      'https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=es&dt=t&q=' + encodeURIComponent(text)
+    );
+    if(!resp.ok) throw new Error('translate-http-' + resp.status);
+    const data = await resp.json();
+    if(!Array.isArray(data) || !Array.isArray(data[0])) throw new Error('translate-bad-response');
+    return data[0].map(segment => segment[0]).join('');
+  }
+
+  function isManualId(id){
+    return typeof id === 'string' && id.indexOf('m-') === 0;
   }
 
   const ANILIST_QUERY = 'query ($search: String) { Page(perPage: 8) { media(search: $search, type: ANIME, sort: SEARCH_MATCH) { id title { romaji english } coverImage { large } description(asHtml: false) seasonYear episodes format status genres } } }';
@@ -357,7 +432,7 @@
   function renderResults(mediaList){
     el.results.innerHTML = '';
     mediaList.forEach(m => {
-      const title = (m.title && (m.title.english || m.title.romaji)) || 'Sin título';
+      const title = (m.title && (m.title.romaji || m.title.english)) || 'Sin título';
       const img = (m.coverImage && m.coverImage.large) || '';
       const year = m.seasonYear || '—';
       const eps = m.episodes || '?';
@@ -370,37 +445,125 @@
           '<div class="r-meta">' + escapeHtml(year) + ' · ' + escapeHtml(eps) + ' eps</div>' +
           '<div class="r-add">+ Añadir a la animeteca</div>' +
         '</div>';
-      card.addEventListener('click', () => addAnime(m));
+      card.addEventListener('click', () => openAddPanel(m));
       el.results.appendChild(card);
     });
   }
 
-  function addAnime(m){
+  // ---------- Panel de confirmación al agregar (tipo, temporada y calificación) ----------
+  function openAddPanel(m){
     const id = 'al-' + m.id;
     if(animeList.some(a => a.id === id)){
       setStatus('Ese título ya está en tu animeteca.', false);
       return;
     }
-    const title = (m.title && (m.title.english || m.title.romaji)) || 'Sin título';
+    currentModalId = null;
+    modalEditing = false;
+    m._selectedRating = null;
+
+    renderAddPanel(m, null); // null = sinopsis aún traduciéndose
+    el.modalOverlay.classList.add('open');
+
+    const raw = stripHtml(m.description);
+    if(raw){
+      translateToSpanish(raw)
+        .then(t => { m._translatedSynopsis = t; m._synopsisEs = true; renderAddPanel(m, t); })
+        .catch(() => { m._translatedSynopsis = raw; m._synopsisEs = false; renderAddPanel(m, raw); });
+    } else {
+      m._translatedSynopsis = 'Sin sinopsis disponible.';
+      m._synopsisEs = false;
+    }
+  }
+
+  function renderAddPanel(m, synopsisText){
+    const title = (m.title && (m.title.romaji || m.title.english)) || 'Sin título';
+    const img = (m.coverImage && m.coverImage.large) || '';
+    const typeGuess = translateType(m.format) || '';
+    const genrePills = (m.genres && m.genres.length)
+      ? m.genres.map(g => '<span class="genre-pill">' + escapeHtml(g) + '</span>').join('')
+      : '<span class="genre-pill">Sin género</span>';
+    const synDisplay = synopsisText === null ? 'Traduciendo sinopsis…' : (synopsisText || 'Sin sinopsis disponible.');
+
+    el.modalContent.innerHTML =
+      '<div class="modal-body">' +
+        '<img class="modal-poster" src="' + escapeHtml(img) + '" alt="">' +
+        '<div>' +
+          '<div class="modal-title">' + escapeHtml(title) + '</div>' +
+          '<div class="modal-genres">' + genrePills + '</div>' +
+          '<div class="modal-synopsis">' + escapeHtml(synDisplay) + '</div>' +
+          '<div class="manual-two-col" style="margin-top:6px;">' +
+            '<div class="modal-edit-field">' +
+              '<label>Tipo</label>' +
+              '<select id="addType">' + typeOptionsHtml(typeGuess) + '</select>' +
+            '</div>' +
+            '<div class="modal-edit-field">' +
+              '<label>Temporada</label>' +
+              '<select id="addSeasonNumber">' + seasonOptionsHtml('') + '</select>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="modal-foot" style="flex-direction:column;align-items:stretch;">' +
+        '<div>' +
+          '<label style="display:block;font-family:\'IBM Plex Mono\',monospace;font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:8px;">Calificación</label>' +
+          '<div class="rate-picker" id="addRatingPicker"></div>' +
+        '</div>' +
+        '<div class="modal-actions" style="justify-content:flex-end;margin-top:16px;">' +
+          '<button class="btn-ghost" id="addCancelBtn">Cancelar</button>' +
+          '<button class="btn-primary" id="addConfirmBtn">Agregar a mi animeteca</button>' +
+        '</div>' +
+      '</div>';
+
+    const pickerEl = document.getElementById('addRatingPicker');
+    function paintPicker(){
+      pickerEl.innerHTML = '';
+      pickerEl.appendChild(buildRatingPickerGrid(m._selectedRating, (val) => { m._selectedRating = val; paintPicker(); }));
+    }
+    paintPicker();
+
+    document.getElementById('addCancelBtn').addEventListener('click', closeModal);
+    document.getElementById('addConfirmBtn').addEventListener('click', () => {
+      const type = document.getElementById('addType').value || null;
+      const seasonNumber = document.getElementById('addSeasonNumber').value
+        ? parseInt(document.getElementById('addSeasonNumber').value, 10) : null;
+      finalizeAddAnime(m, type, seasonNumber);
+    });
+  }
+
+  function finalizeAddAnime(m, type, seasonNumber){
+    const id = 'al-' + m.id;
+    if(animeList.some(a => a.id === id)){
+      setStatus('Ese título ya está en tu animeteca.', false);
+      closeModal();
+      return;
+    }
+    const title = (m.title && (m.title.romaji || m.title.english)) || 'Sin título';
+    const finalSynopsis = (m._translatedSynopsis !== undefined)
+      ? m._translatedSynopsis
+      : (stripHtml(m.description) || 'Sin sinopsis disponible.');
+
     animeList.push({
       id: id,
       title: title,
       image: (m.coverImage && m.coverImage.large) || '',
-      synopsis: stripHtml(m.description) || 'Sin sinopsis disponible.',
+      synopsis: finalSynopsis,
+      synopsisEs: m._synopsisEs || false,
       year: m.seasonYear || null,
       episodes: m.episodes || null,
-      type: m.format || null,
+      type: type,
       status: m.status || null,
-      seasonNumber: null,
+      seasonNumber: seasonNumber,
       genres: Array.isArray(m.genres) ? m.genres.slice() : [],
-      rating: null,
+      rating: m._selectedRating || null,
       addedAt: Date.now()
     });
+
     el.results.innerHTML = '';
     el.input.value = '';
-    setStatus('"' + title + '" añadido a tu animeteca.', false);
     saveList();
     render();
+    closeModal();
+    setStatus('"' + title + '" añadido a tu animeteca.', false);
   }
 
   function removeAnime(id){
@@ -412,6 +575,59 @@
   function setRating(id, value){
     const a = animeList.find(a => a.id === id);
     if(a){ a.rating = value; saveList(); render(); if(currentModalId === id) openModal(id); }
+  }
+
+  // ---------- Sistema de calificación (enteros, medios puntos, y una marca
+  // especial para lo que está "por encima de un 10") ----------
+  const RATING_OPTIONS = [1,1.5,2,2.5,3,3.5,4,4.5,5,5.5,6,6.5,7,7.5,8,8.5,9,9.5,10,11];
+  const RATING_SPECIAL = 11; // "más de un 10" — obra maestra
+  const RATING_SPECIAL_MARK = '✦';
+
+  function ratingLabel(v){
+    return v === RATING_SPECIAL ? RATING_SPECIAL_MARK : String(v);
+  }
+
+  function ratingOptionsHtml(selected){
+    let html = '<option value="">Sin calificar</option>';
+    RATING_OPTIONS.forEach(v => {
+      const label = v === RATING_SPECIAL ? RATING_SPECIAL_MARK + ' Obra maestra (más de un 10)' : String(v);
+      html += '<option value="' + v + '"' + (String(selected) === String(v) ? ' selected' : '') + '>' + label + '</option>';
+    });
+    return html;
+  }
+
+  function buildRatingPickerGrid(currentValue, onSelect){
+    const grid = document.createElement('div');
+    grid.className = 'rate-picker';
+    RATING_OPTIONS.forEach(v => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = ratingLabel(v);
+      if(v === RATING_SPECIAL) b.classList.add('special-option');
+      if(currentValue === v) b.classList.add('selected');
+      b.addEventListener('click', () => onSelect(v));
+      grid.appendChild(b);
+    });
+    return grid;
+  }
+
+  function renderStamp(holder, a){
+    holder.innerHTML = '';
+    const hasRating = a.rating !== null && a.rating !== undefined;
+    const stamp = document.createElement('div');
+    stamp.className = 'stamp' + (hasRating ? '' : ' empty') + (a.rating === RATING_SPECIAL ? ' special' : '');
+    if(hasRating && a.rating === RATING_SPECIAL){
+      stamp.innerHTML = '<div class="num special-num">' + RATING_SPECIAL_MARK + '</div>';
+    } else if(hasRating){
+      stamp.innerHTML = '<div class="num">' + a.rating + '</div><div class="den">/ 10</div>';
+    } else {
+      stamp.innerHTML = '<div class="num">Calif.</div>';
+    }
+    stamp.addEventListener('click', () => {
+      holder.innerHTML = '';
+      holder.appendChild(buildRatingPickerGrid(a.rating, (v) => setRating(a.id, v)));
+    });
+    holder.appendChild(stamp);
   }
 
   // ---------- Label translation helpers ----------
@@ -456,14 +672,12 @@
     el.tabSearch.classList.add('active');
     el.tabManual.classList.remove('active');
     el.searchBox.style.display = 'flex';
-    el.searchHintText.style.display = 'block';
     el.manualForm.classList.remove('open');
   });
   el.tabManual.addEventListener('click', () => {
     el.tabManual.classList.add('active');
     el.tabSearch.classList.remove('active');
     el.searchBox.style.display = 'none';
-    el.searchHintText.style.display = 'none';
     el.results.innerHTML = '';
     setStatus('', false);
     el.manualForm.classList.add('open');
@@ -494,6 +708,7 @@
 
   el.manualType.innerHTML = typeOptionsHtml('');
   el.manualSeasonNumber.innerHTML = seasonOptionsHtml('');
+  el.manualRating.innerHTML = ratingOptionsHtml('');
 
   function resetManualForm(){
     el.manualTitle.value = '';
@@ -524,7 +739,7 @@
     }
     const image = manualImageData || el.manualImageUrl.value.trim();
     const genres = splitGenres(el.manualGenres.value);
-    const rating = el.manualRating.value ? parseInt(el.manualRating.value, 10) : null;
+    const rating = el.manualRating.value ? parseFloat(el.manualRating.value) : null;
     const synopsis = el.manualSynopsis.value.trim() || 'Sin sinopsis disponible.';
     const type = el.manualType.value || null;
     const year = el.manualYear.value.trim() ? parseInt(el.manualYear.value, 10) : null;
@@ -767,30 +982,6 @@
     return card;
   }
 
-  function renderStamp(holder, a){
-    holder.innerHTML = '';
-    const stamp = document.createElement('div');
-    stamp.className = 'stamp' + (a.rating ? '' : ' empty');
-    stamp.innerHTML = a.rating
-      ? '<div class="num">' + a.rating + '</div><div class="den">/ 10</div>'
-      : '<div class="num">Calif.</div>';
-    stamp.addEventListener('click', () => openRatePicker(holder, a));
-    holder.appendChild(stamp);
-  }
-
-  function openRatePicker(holder, a){
-    holder.innerHTML = '';
-    const picker = document.createElement('div');
-    picker.className = 'rate-picker';
-    for(let i=1;i<=10;i++){
-      const b = document.createElement('button');
-      b.textContent = i;
-      b.addEventListener('click', () => setRating(a.id, i));
-      picker.appendChild(b);
-    }
-    holder.appendChild(picker);
-  }
-
   function populateGenreFilter(){
     const genreSet = new Set();
     animeList.forEach(a => (a.genres||[]).forEach(g => genreSet.add(g)));
@@ -822,11 +1013,16 @@
     if(currentGenre !== 'all'){
       filtered = filtered.filter(a => a.genres && a.genres.includes(currentGenre));
     }
+    if(libraryQuery){
+      filtered = filtered.filter(a => a.title.toLowerCase().includes(libraryQuery));
+    }
 
     if(filtered.length === 0){
+      const reason = libraryQuery
+        ? 'No hay nada que coincida con "' + escapeHtml(libraryQuery) + '".'
+        : 'Prueba con otro filtro o elige "Todos los géneros".';
       el.listArea.innerHTML =
-        '<div class="empty-state"><div class="big">SIN RESULTADOS PARA ESTE GÉNERO</div>' +
-        'Prueba con otro filtro o elige "Todos los géneros".</div>';
+        '<div class="empty-state"><div class="big">SIN RESULTADOS</div>' + reason + '</div>';
       return;
     }
 
@@ -866,7 +1062,7 @@
         el.listArea.appendChild(heading);
 
         const grid = document.createElement('div');
-        grid.className = 'grid';
+        grid.className = 'grid' + (currentView !== 'large' ? ' size-' + currentView : '');
         groups[L].forEach(a => {
           grid.appendChild(makeCard(a, runningIndex));
           runningIndex++;
@@ -875,7 +1071,7 @@
       });
     } else {
       const grid = document.createElement('div');
-      grid.className = 'grid';
+      grid.className = 'grid' + (currentView !== 'large' ? ' size-' + currentView : '');
       sorted.forEach((a, i) => grid.appendChild(makeCard(a, i)));
       el.listArea.appendChild(grid);
     }
@@ -890,6 +1086,20 @@
     if(!btn) return;
     currentSort = btn.dataset.sort;
     [...el.sortGroup.children].forEach(b => b.classList.toggle('active', b === btn));
+    render();
+  });
+
+  el.viewGroup.addEventListener('click', e => {
+    const btn = e.target.closest('.view-btn');
+    if(!btn) return;
+    currentView = btn.dataset.view;
+    try{ localStorage.setItem('vista-animeteca', currentView); }catch(e){}
+    [...el.viewGroup.children].forEach(b => b.classList.toggle('active', b === btn));
+    render();
+  });
+
+  el.librarySearchInput.addEventListener('input', () => {
+    libraryQuery = el.librarySearchInput.value.trim().toLowerCase();
     render();
   });
 
@@ -1050,6 +1260,8 @@
     };
     reader.readAsText(file);
   });
+
+  [...el.viewGroup.children].forEach(b => b.classList.toggle('active', b.dataset.view === currentView));
 
   loadList();
 })();
