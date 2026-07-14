@@ -26,6 +26,14 @@
     </div>
   </div>
 
+  <!-- Pestañas de nivel superior: la colección normal, o el panel de estadísticas -->
+  <div class="page-tabs" id="pageTabs">
+    <button class="page-tab active" data-page="collection">Colección</button>
+    <button class="page-tab" data-page="stats">📊 Estadísticas</button>
+  </div>
+
+  <div id="collectionView">
+
   <!-- Pestañas para elegir cómo agregar un anime: por búsqueda o a mano -->
   <div class="add-mode-row">
     <button class="mode-tab active" id="tabSearch">Buscar anime</button>
@@ -83,9 +91,15 @@
             <select id="manualSeasonNumber"></select><!-- opciones cargadas por JS: seasonOptionsHtml() -->
           </div>
         </div>
-        <div class="field">
-          <label>Calificación (opcional)</label>
-          <select id="manualRating"></select><!-- opciones cargadas por JS: ratingOptionsHtml() -->
+        <div class="manual-two-col">
+          <div class="field">
+            <label>Calificación (opcional)</label>
+            <select id="manualRating"></select><!-- opciones cargadas por JS: ratingOptionsHtml() -->
+          </div>
+          <div class="field">
+            <label>Estado</label>
+            <select id="manualWatchStatus"></select><!-- opciones cargadas por JS: watchStatusOptionsHtml() -->
+          </div>
         </div>
         <div class="field">
           <label>Sinopsis</label>
@@ -97,6 +111,17 @@
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- "Mis Listas": filtra la colección por estado de visto -->
+  <div class="watch-tabs-heading">Mis Listas</div>
+  <div class="watch-tabs" id="watchTabs">
+    <button class="watch-tab active" data-status="todo">Todo</button>
+    <button class="watch-tab" data-status="viendo">Viendo</button>
+    <button class="watch-tab" data-status="por-ver">Por Ver</button>
+    <button class="watch-tab" data-status="completado">Completado</button>
+    <button class="watch-tab" data-status="pausado">Pausado</button>
+    <button class="watch-tab" data-status="descartado">Descartado</button>
   </div>
 
   <!-- Fila 1: orden de la colección (izquierda) y tamaño de miniatura (derecha) -->
@@ -148,6 +173,10 @@
 
   <div id="listArea"></div><!-- aquí se dibuja toda la cuadrícula de tarjetas (función render()) -->
 
+  </div><!-- fin de #collectionView -->
+
+  <div id="statsView" style="display:none;"></div><!-- panel de estadísticas, se llena con renderStats() -->
+
 </div>
 
 <!-- Modal reutilizable: detalle/edición de un anime YA agregado, y también
@@ -165,6 +194,7 @@
   let animeList = [];
   let currentSort = 'alpha';
   let currentGenre = 'all';
+  let currentWatchStatus = 'todo';
   let currentView = localStorage.getItem('vista-animeteca') || 'large';
   let libraryQuery = '';
   let loaded = false;
@@ -200,12 +230,17 @@
     manualEpisodes: document.getElementById('manualEpisodes'),
     manualSeasonNumber: document.getElementById('manualSeasonNumber'),
     manualRating: document.getElementById('manualRating'),
+    manualWatchStatus: document.getElementById('manualWatchStatus'),
     manualSynopsis: document.getElementById('manualSynopsis'),
     manualSubmit: document.getElementById('manualSubmit'),
     manualCancel: document.getElementById('manualCancel'),
     modalOverlay: document.getElementById('modalOverlay'),
     modalContent: document.getElementById('modalContent'),
     modalClose: document.getElementById('modalClose'),
+    watchTabs: document.getElementById('watchTabs'),
+    pageTabs: document.getElementById('pageTabs'),
+    collectionView: document.getElementById('collectionView'),
+    statsView: document.getElementById('statsView'),
   };
 
   function escapeHtml(str){
@@ -245,6 +280,12 @@
     animeList.forEach(a => {
       if(Array.isArray(a.genres) && a.genres.length === 1 && /\s-\s|\/|;/.test(a.genres[0])){
         a.genres = splitGenres(a.genres[0]);
+        migrated = true;
+      }
+      // Los animes agregados antes de "Mis Listas" no tenían estado de visto;
+      // como la app siempre asumió que lo agregado ya se había visto, ese es el default.
+      if(!a.watchStatus){
+        a.watchStatus = 'completado';
         migrated = true;
       }
     });
@@ -501,6 +542,10 @@
               '<select id="addSeasonNumber">' + seasonOptionsHtml('') + '</select>' +
             '</div>' +
           '</div>' +
+          '<div class="modal-edit-field">' +
+            '<label>Estado</label>' +
+            '<select id="addWatchStatus">' + watchStatusOptionsHtml('completado') + '</select>' +
+          '</div>' +
         '</div>' +
       '</div>' +
       '<div class="modal-foot" style="flex-direction:column;align-items:stretch;">' +
@@ -526,11 +571,12 @@
       const type = document.getElementById('addType').value || null;
       const seasonNumber = document.getElementById('addSeasonNumber').value
         ? parseInt(document.getElementById('addSeasonNumber').value, 10) : null;
-      finalizeAddAnime(m, type, seasonNumber);
+      const watchStatus = document.getElementById('addWatchStatus').value || 'completado';
+      finalizeAddAnime(m, type, seasonNumber, watchStatus);
     });
   }
 
-  function finalizeAddAnime(m, type, seasonNumber){
+  function finalizeAddAnime(m, type, seasonNumber, watchStatus){
     const id = 'al-' + m.id;
     if(animeList.some(a => a.id === id)){
       setStatus('Ese título ya está en tu animeteca.', false);
@@ -555,6 +601,7 @@
       seasonNumber: seasonNumber,
       genres: Array.isArray(m.genres) ? m.genres.slice() : [],
       rating: m._selectedRating || null,
+      watchStatus: watchStatus || 'completado',
       addedAt: Date.now()
     });
 
@@ -575,6 +622,24 @@
   function setRating(id, value){
     const a = animeList.find(a => a.id === id);
     if(a){ a.rating = value; saveList(); render(); if(currentModalId === id) openModal(id); }
+  }
+
+  // ---------- Estado de visto ("Mis Listas": Viendo / Por Ver / Completado / Pausado / Descartado) ----------
+  const WATCH_STATUSES = [
+    {value:'viendo', label:'Viendo'},
+    {value:'por-ver', label:'Por Ver'},
+    {value:'completado', label:'Completado'},
+    {value:'pausado', label:'Pausado'},
+    {value:'descartado', label:'Descartado'}
+  ];
+  function watchStatusLabel(v){
+    const found = WATCH_STATUSES.find(w => w.value === v);
+    return found ? found.label : 'Completado';
+  }
+  function watchStatusOptionsHtml(selected){
+    return WATCH_STATUSES.map(w =>
+      '<option value="' + w.value + '"' + (selected === w.value ? ' selected' : '') + '>' + w.label + '</option>'
+    ).join('');
   }
 
   // ---------- Sistema de calificación (enteros, medios puntos, y una marca
@@ -709,6 +774,7 @@
   el.manualType.innerHTML = typeOptionsHtml('');
   el.manualSeasonNumber.innerHTML = seasonOptionsHtml('');
   el.manualRating.innerHTML = ratingOptionsHtml('');
+  el.manualWatchStatus.innerHTML = watchStatusOptionsHtml('completado');
 
   function resetManualForm(){
     el.manualTitle.value = '';
@@ -719,6 +785,7 @@
     el.manualEpisodes.value = '';
     el.manualSeasonNumber.value = '';
     el.manualRating.value = '';
+    el.manualWatchStatus.value = 'completado';
     el.manualSynopsis.value = '';
     el.manualFile.value = '';
     manualImageData = '';
@@ -745,6 +812,7 @@
     const year = el.manualYear.value.trim() ? parseInt(el.manualYear.value, 10) : null;
     const episodes = el.manualEpisodes.value.trim() ? parseInt(el.manualEpisodes.value, 10) : null;
     const seasonNumber = el.manualSeasonNumber.value ? parseInt(el.manualSeasonNumber.value, 10) : null;
+    const watchStatus = el.manualWatchStatus.value || 'completado';
 
     animeList.push({
       id: 'm-' + Date.now(),
@@ -758,6 +826,7 @@
       seasonNumber: seasonNumber,
       genres: genres,
       rating: rating,
+      watchStatus: watchStatus,
       addedAt: Date.now()
     });
     saveList();
@@ -809,6 +878,7 @@
     if(seasonLabel) badgeBits.push(seasonLabel);
     if(status) badgeBits.push(status);
     if(a.episodes) badgeBits.push(a.episodes + ' eps');
+    badgeBits.push(watchStatusLabel(a.watchStatus));
 
     const genrePills = (a.genres && a.genres.length)
       ? a.genres.map(g => '<span class="genre-pill">' + escapeHtml(g) + '</span>').join('')
@@ -891,6 +961,10 @@
             '</div>' +
           '</div>' +
           '<div class="modal-edit-field">' +
+            '<label>Estado</label>' +
+            '<select id="editWatchStatus">' + watchStatusOptionsHtml(a.watchStatus || 'completado') + '</select>' +
+          '</div>' +
+          '<div class="modal-edit-field">' +
             '<label>Sinopsis</label>' +
             '<textarea id="editSynopsis">' + escapeHtml(a.synopsis || '') + '</textarea>' +
           '</div>' +
@@ -937,6 +1011,7 @@
       a.year = document.getElementById('editYear').value.trim() ? parseInt(document.getElementById('editYear').value, 10) : null;
       a.episodes = document.getElementById('editEpisodes').value.trim() ? parseInt(document.getElementById('editEpisodes').value, 10) : null;
       a.seasonNumber = document.getElementById('editSeasonNumber').value ? parseInt(document.getElementById('editSeasonNumber').value, 10) : null;
+      a.watchStatus = document.getElementById('editWatchStatus').value || 'completado';
       a.synopsis = document.getElementById('editSynopsis').value.trim() || 'Sin sinopsis disponible.';
       saveList();
       render();
@@ -1015,6 +1090,9 @@
     }
     if(libraryQuery){
       filtered = filtered.filter(a => a.title.toLowerCase().includes(libraryQuery));
+    }
+    if(currentWatchStatus !== 'todo'){
+      filtered = filtered.filter(a => (a.watchStatus || 'completado') === currentWatchStatus);
     }
 
     if(filtered.length === 0){
@@ -1100,6 +1178,14 @@
 
   el.librarySearchInput.addEventListener('input', () => {
     libraryQuery = el.librarySearchInput.value.trim().toLowerCase();
+    render();
+  });
+
+  el.watchTabs.addEventListener('click', e => {
+    const btn = e.target.closest('.watch-tab');
+    if(!btn) return;
+    currentWatchStatus = btn.dataset.status;
+    [...el.watchTabs.children].forEach(b => b.classList.toggle('active', b === btn));
     render();
   });
 
@@ -1244,6 +1330,7 @@
                 seasonNumber: item.seasonNumber || null,
                 genres: Array.isArray(item.genres) ? item.genres : [],
                 rating: item.rating || null,
+                watchStatus: item.watchStatus || 'completado',
                 addedAt: item.addedAt || Date.now()
               });
               added++;
@@ -1262,6 +1349,100 @@
   });
 
   [...el.viewGroup.children].forEach(b => b.classList.toggle('active', b.dataset.view === currentView));
+
+  // ---------- Pestañas de nivel superior: Colección / Estadísticas ----------
+  el.pageTabs.addEventListener('click', e => {
+    const btn = e.target.closest('.page-tab');
+    if(!btn) return;
+    [...el.pageTabs.children].forEach(b => b.classList.toggle('active', b === btn));
+    if(btn.dataset.page === 'stats'){
+      el.collectionView.style.display = 'none';
+      el.statsView.style.display = 'block';
+      renderStats();
+    } else {
+      el.statsView.style.display = 'none';
+      el.collectionView.style.display = 'block';
+    }
+  });
+
+  // ---------- Panel de estadísticas: calcula todo a partir de animeList ----------
+  function computeStats(){
+    const total = animeList.length;
+    const rated = animeList.filter(a => a.rating !== null && a.rating !== undefined);
+    const avgRating = rated.length
+      ? (rated.reduce((sum, a) => sum + a.rating, 0) / rated.length)
+      : null;
+    const masterpieces = animeList.filter(a => a.rating === RATING_SPECIAL).length;
+    const totalEpisodes = animeList.reduce((sum, a) => sum + (Number(a.episodes) || 0), 0);
+
+    const byStatus = {};
+    WATCH_STATUSES.forEach(w => byStatus[w.value] = 0);
+    animeList.forEach(a => {
+      const s = a.watchStatus || 'completado';
+      byStatus[s] = (byStatus[s] || 0) + 1;
+    });
+
+    const genreCount = {};
+    animeList.forEach(a => (a.genres || []).forEach(g => { genreCount[g] = (genreCount[g] || 0) + 1; }));
+    const topGenres = Object.entries(genreCount).sort((a,b) => b[1] - a[1]).slice(0, 6);
+
+    return {total, avgRating, masterpieces, totalEpisodes, byStatus, topGenres};
+  }
+
+  function renderStats(){
+    const s = computeStats();
+
+    if(s.total === 0){
+      el.statsView.innerHTML =
+        '<div class="empty-state"><div class="big">TODAVÍA NO HAY DATOS</div>' +
+        'Agrega algunos animes a tu colección y vuelve aquí para ver tus estadísticas.</div>';
+      return;
+    }
+
+    const statCardsHtml =
+      '<div class="stat-cards">' +
+        '<div class="stat-card"><div class="stat-num">' + s.total + '</div><div class="stat-label">Animes en tu archivo</div></div>' +
+        '<div class="stat-card"><div class="stat-num">' + (s.avgRating !== null ? s.avgRating.toFixed(1) : '—') + '</div><div class="stat-label">Calificación promedio</div></div>' +
+        '<div class="stat-card"><div class="stat-num">' + s.totalEpisodes.toLocaleString('es') + '</div><div class="stat-label">Episodios en total</div></div>' +
+        '<div class="stat-card"><div class="stat-num">' + s.masterpieces + ' ✦</div><div class="stat-label">Obras maestra</div></div>' +
+      '</div>';
+
+    const maxStatus = Math.max(1, ...WATCH_STATUSES.map(w => s.byStatus[w.value]));
+    const statusBarsHtml =
+      '<div class="stats-block">' +
+        '<div class="stats-block-title">Por estado</div>' +
+        WATCH_STATUSES.map(w => {
+          const count = s.byStatus[w.value];
+          const pct = Math.round((count / maxStatus) * 100);
+          return '<div class="stat-bar-row">' +
+            '<div class="stat-bar-label">' + escapeHtml(w.label) + '</div>' +
+            '<div class="stat-bar-track"><div class="stat-bar-fill" style="width:' + pct + '%;"></div></div>' +
+            '<div class="stat-bar-count">' + count + '</div>' +
+          '</div>';
+        }).join('') +
+      '</div>';
+
+    const maxGenre = s.topGenres.length ? s.topGenres[0][1] : 1;
+    const genresHtml =
+      '<div class="stats-block">' +
+        '<div class="stats-block-title">Géneros más vistos</div>' +
+        (s.topGenres.length
+          ? s.topGenres.map(([genre, count]) => {
+              const pct = Math.round((count / maxGenre) * 100);
+              return '<div class="stat-bar-row">' +
+                '<div class="stat-bar-label">' + escapeHtml(genre) + '</div>' +
+                '<div class="stat-bar-track"><div class="stat-bar-fill genre-fill" style="width:' + pct + '%;"></div></div>' +
+                '<div class="stat-bar-count">' + count + '</div>' +
+              '</div>';
+            }).join('')
+          : '<div class="search-hint">Todavía no hay géneros registrados.</div>')+
+      '</div>';
+
+    el.statsView.innerHTML =
+      '<div class="stats-heading">Estadísticas de tu animeteca</div>' +
+      statCardsHtml +
+      '<div class="stats-columns">' + statusBarsHtml + genresHtml + '</div>';
+  }
 
   loadList();
 })();
