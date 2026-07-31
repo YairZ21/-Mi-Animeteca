@@ -50,6 +50,44 @@
     padding-bottom:18px;
     margin-bottom:22px;
   }
+  .header-right{ /* agrupa el botón +18 / link de volver junto al contador */
+    display:flex;
+    align-items:center;
+    gap:14px;
+  }
+  .adult-mode-btn{ /* botón "+18" que abre el archivo aparte en otra pestaña */
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    font-weight:700;
+    letter-spacing:.5px;
+    background:transparent;
+    border:1px solid var(--line);
+    color:var(--muted);
+    padding:7px 13px;
+    border-radius:20px;
+    cursor:pointer;
+  }
+  .adult-mode-btn:hover{border-color:#ff537e;color:#ff537e;}
+  .adult-back-link{ /* solo visible dentro del modo +18: vuelve al catálogo normal */
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11.5px;
+    color:var(--muted);
+    text-decoration:none;
+    background:none;
+    border:none;
+    padding:0;
+    cursor:pointer;
+  }
+  .adult-back-link:hover{color:var(--paper);}
+
+  /* Modo +18: mismo layout, acento de color distinto (rojo en vez de turquesa).
+     Se activa agregando la clase "mode-adults" al <body> cuando la URL trae ?modo=adultos */
+  body.mode-adults{
+    --accent:#ff537e;
+    --accent-hover:#e0466e;
+  }
+  body.mode-adults .adult-mode-btn{display:none;}
+  body.mode-adults .adult-back-link{display:inline-block !important;}
 
   .title-block h1{ /* "MI ANIMETECA" */
     font-family:'Bebas Neue',sans-serif;

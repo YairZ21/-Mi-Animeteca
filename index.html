@@ -17,12 +17,19 @@
   <!-- Encabezado: título de la app y contador de títulos guardados -->
   <div class="header">
     <div class="title-block">
-      <h1>MI ANIMETECA</h1>
-      <div class="sub">Catálogo personal · lo que ya viste, ordenado y calificado</div>
+      <h1 id="mainTitle">MI ANIMETECA</h1>
+      <div class="sub" id="mainSubtitle">Catálogo personal · lo que ya viste, ordenado y calificado</div>
     </div>
-    <div class="count-badge" id="countBadge">
-      <b id="countNum">0</b>
-      títulos archivados
+    <div class="header-right">
+      <!-- Botón +18: abre esta misma app en OTRA pestaña, con almacenamiento
+           separado ('lista-anime-adultos') y un acento de color distinto,
+           para que nunca se mezcle con la colección principal -->
+      <button class="adult-mode-btn" id="adultModeBtn" title="Cambiar al archivo +18">+18</button>
+      <button class="adult-back-link" id="adultBackLink" style="display:none;">← Volver al catálogo principal</button>
+      <div class="count-badge" id="countBadge">
+        <b id="countNum">0</b>
+        títulos archivados
+      </div>
     </div>
   </div>
 
@@ -147,7 +154,6 @@
   <!-- Fila 2: enviar / exportar / importar respaldo de la colección -->
   <div class="controls">
     <div class="backup-group">
-      <button class="backup-btn" id="shareBtn">Enviar por correo / Drive</button>
       <button class="backup-btn" id="exportBtn">Exportar respaldo (.json)</button>
       <button class="backup-btn" id="exportTxtBtn">Exportar lista (.txt)</button>
       <button class="backup-btn" id="importBtn">Importar respaldo</button>
@@ -190,7 +196,12 @@
 
 <script>
 (function(){
-  const STORAGE_KEY = 'lista-anime';
+  // ---------- Modo +18 ----------
+  // No abre pestañas ni recarga la página: solo cambia qué clave de
+  // localStorage se lee/guarda y repinta la colección, dentro de la misma
+  // ventana. Así "lista-anime" (normal) y "lista-anime-adultos" nunca se mezclan.
+  let isAdultMode = false;
+  let STORAGE_KEY = 'lista-anime';
   let animeList = [];
   let currentSort = 'alpha';
   let currentGenre = 'all';
@@ -206,12 +217,15 @@
     searchStatus: document.getElementById('searchStatus'),
     listArea: document.getElementById('listArea'),
     countNum: document.getElementById('countNum'),
+    mainTitle: document.getElementById('mainTitle'),
+    mainSubtitle: document.getElementById('mainSubtitle'),
+    adultModeBtn: document.getElementById('adultModeBtn'),
+    adultBackLink: document.getElementById('adultBackLink'),
     rail: document.getElementById('rail'),
     sortGroup: document.getElementById('sortGroup'),
     genreFilter: document.getElementById('genreFilter'),
     viewGroup: document.getElementById('viewGroup'),
     librarySearchInput: document.getElementById('librarySearchInput'),
-    shareBtn: document.getElementById('shareBtn'),
     exportBtn: document.getElementById('exportBtn'),
     exportTxtBtn: document.getElementById('exportTxtBtn'),
     importBtn: document.getElementById('importBtn'),
@@ -1195,11 +1209,24 @@
   });
 
   // ---------- Export / Import backup ----------
+  function readListFromStorage(key){
+    try{
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : [];
+    }catch(e){
+      return [];
+    }
+  }
+
+  // El respaldo .json siempre incluye AMBAS colecciones (normal y +18), leídas
+  // directamente de localStorage (no solo la que tengas abierta en pantalla),
+  // así un solo archivo sirve para restaurar las dos.
   function buildBackupBlob(){
     const payload = {
       app: 'mi-animeteca',
       exportedAt: new Date().toISOString(),
-      items: animeList
+      items: readListFromStorage('lista-anime'),
+      itemsAdultos: readListFromStorage('lista-anime-adultos')
     };
     return new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
   }
@@ -1236,13 +1263,14 @@
   }
 
   el.exportBtn.addEventListener('click', () => {
-    if(animeList.length === 0){
+    const totalCombinado = readListFromStorage('lista-anime').length + readListFromStorage('lista-anime-adultos').length;
+    if(totalCombinado === 0){
       setStatus('Tu animeteca está vacía, no hay nada que exportar todavía.', false);
       return;
     }
     const stamp = new Date().toISOString().slice(0,10);
     downloadBlob(buildBackupBlob(), 'animeteca-respaldo-' + stamp + '.json');
-    setStatus('Respaldo descargado: guarda ese archivo en un lugar seguro.', false);
+    setStatus('Respaldo descargado (incluye tu catálogo normal y el +18): guarda ese archivo en un lugar seguro.', false);
   });
 
   el.exportTxtBtn.addEventListener('click', () => {
@@ -1255,50 +1283,44 @@
     setStatus('Lista descargada en formato de texto.', false);
   });
 
-  el.shareBtn.addEventListener('click', async () => {
-    if(animeList.length === 0){
-      setStatus('Tu animeteca está vacía, no hay nada que enviar todavía.', false);
-      return;
-    }
-    const stamp = new Date().toISOString().slice(0,10);
-    const filename = 'animeteca-respaldo-' + stamp + '.json';
-    const blob = buildBackupBlob();
-
-    // Web Share API (funciona en la mayoría de celulares y en Chrome/Edge de escritorio):
-    // abre el mismo panel de "Compartir" del sistema, con Gmail, Drive, WhatsApp, etc.
-    if(navigator.canShare){
-      try{
-        const file = new File([blob], filename, {type:'application/json'});
-        if(navigator.canShare({files:[file]})){
-          await navigator.share({
-            files:[file],
-            title:'Respaldo de Mi Animeteca',
-            text:'Respaldo de mi lista de anime (' + animeList.length + ' títulos).'
-          });
-          setStatus('Listo, elige a dónde enviarlo desde el panel que se abrió.', false);
-          return;
-        }
-      }catch(e){
-        if(e && e.name === 'AbortError'){
-          return; // el usuario cerró el panel de compartir, no es un error real
-        }
-        // si falla, cae al respaldo por mailto abajo
-      }
-    }
-
-    // Alternativa si el navegador no soporta compartir archivos: abre el correo
-    // con un enlace de descarga preparado y el respaldo ya descargado aparte.
-    downloadBlob(blob, filename);
-    const subject = encodeURIComponent('Respaldo de Mi Animeteca');
-    const body = encodeURIComponent(
-      'Se descargó el archivo "' + filename + '" en tu carpeta de descargas.\n' +
-      'Adjúntalo manualmente a este correo antes de enviarlo (tu navegador no permite adjuntarlo automáticamente).'
-    );
-    window.location.href = 'mailto:?subject=' + subject + '&body=' + body;
-    setStatus('Tu navegador no admite compartir archivos directamente: se descargó el respaldo y se abrió tu correo para que lo adjuntes.', false);
-  });
-
   el.importBtn.addEventListener('click', () => el.importFile.click());
+
+  function normalizeImportedItem(item){
+    return {
+      id: item.id,
+      title: item.title,
+      image: item.image || '',
+      synopsis: item.synopsis || 'Sin sinopsis disponible.',
+      year: item.year || null,
+      episodes: item.episodes || null,
+      type: item.type || null,
+      status: item.status || null,
+      seasonNumber: item.seasonNumber || null,
+      genres: Array.isArray(item.genres) ? item.genres : [],
+      rating: item.rating || null,
+      watchStatus: item.watchStatus || 'completado',
+      addedAt: item.addedAt || Date.now()
+    };
+  }
+
+  // Mezcla una lista importada dentro de la clave de almacenamiento indicada
+  // (sin tocar lo que esté en memoria si no es la colección activa ahora mismo).
+  function mergeItemsIntoStorageKey(key, incomingItems){
+    const existing = readListFromStorage(key);
+    let added = 0, skipped = 0;
+    incomingItems.forEach(item => {
+      if(item && typeof item.id !== 'undefined' && item.title){
+        if(existing.some(a => a.id === item.id)){
+          skipped++;
+        } else {
+          existing.push(normalizeImportedItem(item));
+          added++;
+        }
+      }
+    });
+    try{ localStorage.setItem(key, JSON.stringify(existing)); }catch(e){}
+    return {added, skipped};
+  }
 
   el.importFile.addEventListener('change', () => {
     const file = el.importFile.files[0];
@@ -1307,39 +1329,33 @@
     reader.onload = () => {
       try{
         const parsed = JSON.parse(reader.result);
-        const items = Array.isArray(parsed) ? parsed : (parsed.items || []);
-        if(!Array.isArray(items) || items.length === 0){
+        // Compatibilidad con respaldos viejos (un solo arreglo, o {items:[...]}
+        // de antes de que existiera el modo +18) y con el formato combinado actual.
+        const normalItems = Array.isArray(parsed) ? parsed : (parsed.items || []);
+        const adultItems = Array.isArray(parsed) ? [] : (parsed.itemsAdultos || []);
+
+        if(normalItems.length === 0 && adultItems.length === 0){
           setStatus('El archivo no tiene un formato de respaldo válido.', true);
           return;
         }
-        let added = 0, skipped = 0;
-        items.forEach(item => {
-          if(item && typeof item.id !== 'undefined' && item.title){
-            if(animeList.some(a => a.id === item.id)){
-              skipped++;
-            } else {
-              animeList.push({
-                id: item.id,
-                title: item.title,
-                image: item.image || '',
-                synopsis: item.synopsis || 'Sin sinopsis disponible.',
-                year: item.year || null,
-                episodes: item.episodes || null,
-                type: item.type || null,
-                status: item.status || null,
-                seasonNumber: item.seasonNumber || null,
-                genres: Array.isArray(item.genres) ? item.genres : [],
-                rating: item.rating || null,
-                watchStatus: item.watchStatus || 'completado',
-                addedAt: item.addedAt || Date.now()
-              });
-              added++;
-            }
-          }
-        });
-        saveList();
+
+        const resultNormal = mergeItemsIntoStorageKey('lista-anime', normalItems);
+        const resultAdult = adultItems.length
+          ? mergeItemsIntoStorageKey('lista-anime-adultos', adultItems)
+          : {added: 0, skipped: 0};
+
+        // Refresca en memoria la colección que esté abierta ahora mismo, por
+        // si el archivo importado le agregó algo.
+        animeList = readListFromStorage(STORAGE_KEY);
         render();
-        setStatus('Respaldo importado: ' + added + ' añadidos, ' + skipped + ' ya existían.', false);
+
+        const totalAdded = resultNormal.added + resultAdult.added;
+        const totalSkipped = resultNormal.skipped + resultAdult.skipped;
+        let msg = 'Respaldo importado: ' + totalAdded + ' añadidos, ' + totalSkipped + ' ya existían.';
+        if(adultItems.length){
+          msg += ' (' + resultNormal.added + ' al catálogo normal, ' + resultAdult.added + ' al +18)';
+        }
+        setStatus(msg, false);
       }catch(e){
         setStatus('No se pudo leer el archivo. Asegúrate de que sea un respaldo exportado desde aquí.', true);
       }
@@ -1443,6 +1459,44 @@
       statCardsHtml +
       '<div class="stats-columns">' + statusBarsHtml + genresHtml + '</div>';
   }
+
+  // ---------- Cambiar entre el catálogo normal y el modo +18 (misma ventana) ----------
+  function switchMode(toAdult){
+    if(toAdult === isAdultMode) return;
+
+    if(toAdult && !localStorage.getItem('confirmacion-adultos')){
+      const confirmado = confirm('Este apartado es solo para mayores de edad y puede contener contenido +18.\n\n¿Confirmas que eres mayor de edad y quieres continuar?');
+      if(!confirmado) return;
+      localStorage.setItem('confirmacion-adultos', '1');
+    }
+
+    isAdultMode = toAdult;
+    STORAGE_KEY = toAdult ? 'lista-anime-adultos' : 'lista-anime';
+    document.body.classList.toggle('mode-adults', toAdult);
+    el.mainTitle.textContent = toAdult ? 'MI ANIMETECA +18' : 'MI ANIMETECA';
+    el.mainSubtitle.textContent = toAdult
+      ? 'Archivo aparte · no se mezcla con tu catálogo principal'
+      : 'Catálogo personal · lo que ya viste, ordenado y calificado';
+
+    // Se reinician filtros y búsquedas al cambiar de colección, para no
+    // quedar "filtrando" por algo que no existe en el otro archivo.
+    currentSort = 'alpha';
+    currentGenre = 'all';
+    currentWatchStatus = 'todo';
+    libraryQuery = '';
+    el.librarySearchInput.value = '';
+    [...el.sortGroup.children].forEach(b => b.classList.toggle('active', b.dataset.sort === 'alpha'));
+    [...el.watchTabs.children].forEach(b => b.classList.toggle('active', b.dataset.status === 'todo'));
+    closeModal();
+    el.results.innerHTML = '';
+    setStatus('', false);
+
+    loaded = false;
+    loadList();
+  }
+
+  el.adultModeBtn.addEventListener('click', () => switchMode(true));
+  el.adultBackLink.addEventListener('click', () => switchMode(false));
 
   loadList();
 })();
