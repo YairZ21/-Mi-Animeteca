@@ -208,6 +208,7 @@
   let currentWatchStatus = 'todo';
   let currentView = localStorage.getItem('vista-animeteca') || 'large';
   let libraryQuery = '';
+  let lastSearchResults = []; // resultados de la última búsqueda; se re-pintan tras agregar, sin re-consultar
   let loaded = false;
 
   const el = {
@@ -421,7 +422,7 @@
     return typeof id === 'string' && id.indexOf('m-') === 0;
   }
 
-  const ANILIST_QUERY = 'query ($search: String) { Page(perPage: 8) { media(search: $search, type: ANIME, sort: SEARCH_MATCH) { id title { romaji english } coverImage { large } description(asHtml: false) seasonYear episodes format status genres } } }';
+  const ANILIST_QUERY = 'query ($search: String) { Page(perPage: 8) { media(search: $search, type: ANIME, sort: SEARCH_MATCH) { id title { romaji english native } coverImage { large } description(asHtml: false) seasonYear episodes format status genres } } }';
 
   async function fetchAniList(q, attempt){
     const resp = await fetch('https://graphql.anilist.co', {
@@ -468,6 +469,7 @@
         setStatus('Sin resultados para "' + q + '". Prueba con otro título.', false);
       } else {
         setStatus('', false);
+        lastSearchResults = media;
         renderResults(media);
       }
     }catch(e){
@@ -491,14 +493,17 @@
       const img = (m.coverImage && m.coverImage.large) || '';
       const year = m.seasonYear || '—';
       const eps = m.episodes || '?';
+      const alreadyAdded = animeList.some(a => a.id === 'al-' + m.id);
       const card = document.createElement('div');
-      card.className = 'result-card';
+      card.className = 'result-card' + (alreadyAdded ? ' already-added' : '');
       card.innerHTML =
         '<img src="' + escapeHtml(img) + '" alt="">' +
         '<div>' +
           '<div class="r-title">' + escapeHtml(title) + '</div>' +
           '<div class="r-meta">' + escapeHtml(year) + ' · ' + escapeHtml(eps) + ' eps</div>' +
-          '<div class="r-add">+ Añadir a la animeteca</div>' +
+          (alreadyAdded
+            ? '<div class="r-add r-add-done">✓ Ya en tu animeteca</div>'
+            : '<div class="r-add">+ Añadir a la animeteca</div>') +
         '</div>';
       card.addEventListener('click', () => openAddPanel(m));
       el.results.appendChild(card);
@@ -538,27 +543,46 @@
       ? m.genres.map(g => '<span class="genre-pill">' + escapeHtml(g) + '</span>').join('')
       : '<span class="genre-pill">Sin género</span>';
     const synDisplay = synopsisText === null ? 'Traduciendo sinopsis…' : (synopsisText || 'Sin sinopsis disponible.');
+    const altTitles = [m.title && m.title.native, m.title && m.title.english]
+      .filter(t => t && t !== title);
+    const altTitlesHtml = altTitles.length
+      ? '<div class="modal-alt-titles">' + altTitles.map(t => escapeHtml(t)).join(' · ') + '</div>'
+      : '';
+    const seasonGuess = guessSeasonNumberFromSources([
+      m.title && m.title.romaji,
+      m.title && m.title.english,
+      stripHtml(m.description), // sinopsis original (inglés/japonés), disponible de inmediato
+      synopsisText               // sinopsis ya traducida al español, si ya terminó de traducirse
+    ]) || '';
+
+    // Si ya elegiste algo a mano (tipo/temporada/estado), se respeta esa
+    // elección aunque el panel se vuelva a pintar cuando termine de traducirse
+    // la sinopsis — solo se usa la sugerencia automática mientras no la toques.
+    const typeSelected = m._userType !== undefined ? m._userType : typeGuess;
+    const seasonSelected = m._userSeasonNumber !== undefined ? m._userSeasonNumber : seasonGuess;
+    const watchStatusSelected = m._userWatchStatus !== undefined ? m._userWatchStatus : 'completado';
 
     el.modalContent.innerHTML =
       '<div class="modal-body">' +
         '<img class="modal-poster" src="' + escapeHtml(img) + '" alt="">' +
         '<div>' +
           '<div class="modal-title">' + escapeHtml(title) + '</div>' +
+          altTitlesHtml +
           '<div class="modal-genres">' + genrePills + '</div>' +
           '<div class="modal-synopsis">' + escapeHtml(synDisplay) + '</div>' +
           '<div class="manual-two-col" style="margin-top:6px;">' +
             '<div class="modal-edit-field">' +
               '<label>Tipo</label>' +
-              '<select id="addType">' + typeOptionsHtml(typeGuess) + '</select>' +
+              '<select id="addType">' + typeOptionsHtml(typeSelected) + '</select>' +
             '</div>' +
             '<div class="modal-edit-field">' +
-              '<label>Temporada</label>' +
-              '<select id="addSeasonNumber">' + seasonOptionsHtml('') + '</select>' +
+              '<label>Temporada' + (seasonGuess ? ' <span class="auto-guess-tag">sugerida, puedes cambiarla</span>' : '') + '</label>' +
+              '<select id="addSeasonNumber">' + seasonOptionsHtml(seasonSelected) + '</select>' +
             '</div>' +
           '</div>' +
           '<div class="modal-edit-field">' +
             '<label>Estado</label>' +
-            '<select id="addWatchStatus">' + watchStatusOptionsHtml('completado') + '</select>' +
+            '<select id="addWatchStatus">' + watchStatusOptionsHtml(watchStatusSelected) + '</select>' +
           '</div>' +
         '</div>' +
       '</div>' +
@@ -580,12 +604,18 @@
     }
     paintPicker();
 
+    const typeSelect = document.getElementById('addType');
+    const seasonSelect = document.getElementById('addSeasonNumber');
+    const watchStatusSelect = document.getElementById('addWatchStatus');
+    typeSelect.addEventListener('change', () => { m._userType = typeSelect.value; });
+    seasonSelect.addEventListener('change', () => { m._userSeasonNumber = seasonSelect.value; });
+    watchStatusSelect.addEventListener('change', () => { m._userWatchStatus = watchStatusSelect.value; });
+
     document.getElementById('addCancelBtn').addEventListener('click', closeModal);
     document.getElementById('addConfirmBtn').addEventListener('click', () => {
-      const type = document.getElementById('addType').value || null;
-      const seasonNumber = document.getElementById('addSeasonNumber').value
-        ? parseInt(document.getElementById('addSeasonNumber').value, 10) : null;
-      const watchStatus = document.getElementById('addWatchStatus').value || 'completado';
+      const type = typeSelect.value || null;
+      const seasonNumber = seasonSelect.value ? parseInt(seasonSelect.value, 10) : null;
+      const watchStatus = watchStatusSelect.value || 'completado';
       finalizeAddAnime(m, type, seasonNumber, watchStatus);
     });
   }
@@ -605,6 +635,8 @@
     animeList.push({
       id: id,
       title: title,
+      titleNative: (m.title && m.title.native) || null,
+      titleEnglish: (m.title && m.title.english) || null,
       image: (m.coverImage && m.coverImage.large) || '',
       synopsis: finalSynopsis,
       synopsisEs: m._synopsisEs || false,
@@ -619,12 +651,13 @@
       addedAt: Date.now()
     });
 
-    el.results.innerHTML = '';
-    el.input.value = '';
+    // No se limpia la búsqueda: si el anime tiene varias temporadas, así puedes
+    // seguir agregando los siguientes resultados sin tener que volver a buscar.
     saveList();
     render();
     closeModal();
-    setStatus('"' + title + '" añadido a tu animeteca.', false);
+    if(lastSearchResults.length) renderResults(lastSearchResults); // refresca el check "ya en tu animeteca"
+    setStatus('"' + title + '" añadido a tu animeteca. Puedes seguir agregando desde estos mismos resultados.', false);
   }
 
   function removeAnime(id){
@@ -736,6 +769,47 @@
       html += '<option value="' + val + '"' + (String(selected) === String(val) ? ' selected' : '') + '>' + label + '</option>';
     });
     return html;
+  }
+
+  // Intenta adivinar qué número de temporada es a partir del propio título
+  // (ej. "2nd Season", "3rd Stage", "Part 2", "第2期"). Es solo una sugerencia
+  // que precarga el desplegable — el campo sigue siendo 100% editable a mano.
+  const SEASON_WORD_TO_NUM = {
+    '1st':1, 'first':1, 'primera':1,
+    '2nd':2, 'second':2, 'segunda':2,
+    '3rd':3, 'third':3, 'tercera':3,
+    '4th':4, 'fourth':4, 'cuarta':4,
+    '5th':5, 'fifth':5, 'quinta':5,
+    '6th':6, 'sixth':6, 'sexta':6,
+    '7th':7, 'seventh':7, 'septima':7,
+    '8th':8, 'eighth':8, 'octava':8,
+    '9th':9, 'ninth':9, 'novena':9,
+    '10th':10, 'tenth':10, 'decima':10
+  };
+  // Busca pistas de número de temporada en cualquier texto (título o sinopsis,
+  // en inglés, español o japonés): "2nd Season", "Segunda Temporada",
+  // "Temporada 3", "2da Temporada", "Parte 2", "第2期", etc.
+  function guessSeasonNumber(text){
+    if(!text) return null;
+    const norm = text.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // sin tildes
+    let m = norm.match(/\b(1st|first|primera|2nd|second|segunda|3rd|third|tercera|4th|fourth|cuarta|5th|fifth|quinta|6th|sixth|sexta|7th|seventh|septima|8th|eighth|octava|9th|ninth|novena|10th|tenth|decima)\s+(season|stage|cour|part|temporada|parte)\b/i);
+    if(m) return SEASON_WORD_TO_NUM[m[1].toLowerCase()] || null;
+    m = norm.match(/\b(?:season|part|cour|temporada|parte)\s+(\d{1,2})\b/i);
+    if(m) return parseInt(m[1], 10);
+    m = norm.match(/\b(\d{1,2})\s*(?:da|do|ra|to|va|nd|rd|th|st)?\.?\s*temporada\b/i);
+    if(m) return parseInt(m[1], 10);
+    m = text.match(/第\s*(\d{1,2})\s*期/); // caracteres japoneses: se busca en el texto original, no en el normalizado
+    if(m) return parseInt(m[1], 10);
+    return null;
+  }
+  // Prueba varias fuentes de texto en orden y devuelve el primer número de
+  // temporada que se logre adivinar (o null si ninguna da una pista clara).
+  function guessSeasonNumberFromSources(sources){
+    for(const text of sources){
+      const guess = guessSeasonNumber(text);
+      if(guess) return guess;
+    }
+    return null;
   }
   function typeOptionsHtml(selected){
     const options = ['TV Anime','OVA','Especial','Película','ONA'];
@@ -898,11 +972,20 @@
       ? a.genres.map(g => '<span class="genre-pill">' + escapeHtml(g) + '</span>').join('')
       : '<span class="genre-pill">Sin género</span>';
 
+    // Nombres alternativos (japonés nativo / inglés), solo si los tenemos y
+    // son distintos del título principal — igual que en la imagen de referencia.
+    const altTitles = [a.titleNative, a.titleEnglish]
+      .filter(t => t && t !== a.title);
+    const altTitlesHtml = altTitles.length
+      ? '<div class="modal-alt-titles">' + altTitles.map(t => escapeHtml(t)).join(' · ') + '</div>'
+      : '';
+
     el.modalContent.innerHTML =
       '<div class="modal-body">' +
         '<img class="modal-poster" src="' + escapeHtml(a.image) + '" alt="">' +
         '<div>' +
           '<div class="modal-title">' + escapeHtml(a.title) + '</div>' +
+          altTitlesHtml +
           (badgeBits.length ? '<div class="modal-badges">' + escapeHtml(badgeBits.join(' · ')) + '</div>' : '') +
           '<div class="modal-genres">' + genrePills + '</div>' +
           '<div class="modal-synopsis">' + escapeHtml(a.synopsis || 'Sin sinopsis disponible.') + '</div>' +
@@ -1172,6 +1255,15 @@
   // ---------- Events ----------
   el.searchBtn.addEventListener('click', doSearch);
   el.input.addEventListener('keydown', e => { if(e.key === 'Enter') doSearch(); });
+  el.input.addEventListener('input', () => {
+    // Los resultados solo se mantienen mientras haya texto en el buscador;
+    // si lo borras a mano, se limpian también (pero agregar un anime no los toca).
+    if(!el.input.value.trim()){
+      el.results.innerHTML = '';
+      lastSearchResults = [];
+      setStatus('', false);
+    }
+  });
 
   el.sortGroup.addEventListener('click', e => {
     const btn = e.target.closest('.sort-btn');
@@ -1289,6 +1381,8 @@
     return {
       id: item.id,
       title: item.title,
+      titleNative: item.titleNative || null,
+      titleEnglish: item.titleEnglish || null,
       image: item.image || '',
       synopsis: item.synopsis || 'Sin sinopsis disponible.',
       year: item.year || null,
@@ -1489,6 +1583,7 @@
     [...el.watchTabs.children].forEach(b => b.classList.toggle('active', b.dataset.status === 'todo'));
     closeModal();
     el.results.innerHTML = '';
+    lastSearchResults = [];
     setStatus('', false);
 
     loaded = false;

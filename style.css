@@ -219,6 +219,8 @@
     text-transform:uppercase;
     letter-spacing:.5px;
   }
+  .result-card.already-added{opacity:.55;} /* ya está en tu animeteca: se atenúa un poco */
+  .result-card .r-add-done{color:var(--muted);}
 
   /* ============================================================
      BARRA DE CONTROLES — buscador discreto de tu colección,
@@ -915,6 +917,13 @@
     line-height:1.2;
     margin-bottom:8px;
   }
+  .modal-alt-titles{ /* nombres alternativos: japonés nativo / inglés, en letra pequeña */
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11.5px;
+    color:var(--muted);
+    margin:-4px 0 12px;
+    line-height:1.4;
+  }
   .modal-badges{ /* línea "TV Anime · 2024 · Primera Temporada · Finalizado" */
     font-family:'IBM Plex Mono',monospace;
     font-size:12px;
@@ -970,6 +979,12 @@
     letter-spacing:.5px;
     color:var(--muted);
     margin-bottom:5px;
+  }
+  .auto-guess-tag{ /* aviso junto a "Temporada" cuando se adivinó del título */
+    text-transform:none;
+    letter-spacing:0;
+    color:var(--accent);
+    font-weight:400;
   }
   .modal-edit-field input,
   .modal-edit-field textarea{
