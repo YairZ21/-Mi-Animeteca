@@ -37,34 +37,7 @@ Todo vive en tu navegador. Nada se sube a ningún servidor.
 
 ## 🚀 Cómo usarla
 
-No hay instalación, ni build, ni dependencias.
-
-**Opción 1 — Local:**
-1. Descarga [`index.html`](./index.html) **y** [`style.css`](./style.css) — deben estar juntos, en la misma carpeta.
-2. Abre `index.html` con cualquier navegador (haciendo doble clic, o "Abrir con..."). Eso es todo.
-
-> **Importante (celular):** ábrelo siempre con un navegador de verdad (Chrome, Safari, Firefox...), no desde el visor interno de WhatsApp, Telegram, Google Drive u otra app — esos visores no cargan el `style.css` ni permiten guardar datos correctamente.
-
-**Opción 2 — GitHub Pages (para tenerla en una URL fija):**
-1. Ve a *Settings → Pages* en este repositorio.
-2. Elige la rama `main` y la carpeta `/ (root)`.
-3. En un par de minutos tu animeteca estará disponible en `https://<tu-usuario>.github.io/mi-animeteca/`.
-
-**Opción 3 — App de escritorio para Windows (`.exe`):**
-
-El proyecto ya trae todo listo para compilarse como una app real de Windows con [Tauri](https://tauri.app), sin depender del navegador. Funciona **con y sin internet**: la app en sí (ver, calificar, editar, agregar manualmente) no necesita conexión; solo buscar animes nuevos y traducir sinopsis la necesitan, igual que en la versión web.
-
-1. **Agrega tu logo** (si todavía no lo hiciste): coloca una imagen cuadrada (ideal 1024×1024 px) y corre:
-   ```bash
-   pip install pillow
-   python3 scripts/generar_iconos.py ruta/a/tu-logo.png
-   ```
-   Esto llena `src-tauri/icons/` con los tamaños que Windows necesita.
-2. **Sube el proyecto a GitHub** (con `git push`, a la rama `main`).
-3. GitHub compila el `.exe` solo — no necesitas instalar Rust ni nada pesado en tu computadora. Puedes verlo correr en la pestaña **Actions** del repositorio.
-4. Cuando termine (unos minutos), entra a esa ejecución y descarga el archivo `MiAnimeteca-Windows` — adentro está el instalador `.exe`.
-
-Si prefieres compilarlo tú mismo en tu PC en vez de esperar a GitHub, instala [Rust](https://www.rust-lang.org/tools/install) y Tauri CLI (`cargo install tauri-cli`), y corre `cargo tauri build` dentro de la carpeta del proyecto.
+Simplemente descargar el .exe e Instala.
 
 ## 🗃️ Dónde se guardan tus datos
 
