@@ -37,7 +37,7 @@ Todo vive en tu navegador. Nada se sube a ningún servidor.
 
 ## 🚀 Cómo usarla
 
-Simplemente descargar el .exe e Instala.
+ [Simplemente descargar el .exe e Instala.](https://github.com/YairZ21/-Mi-Animeteca/releases/tag/Mi-Animeteca)
 
 ## 🗃️ Dónde se guardan tus datos
 
