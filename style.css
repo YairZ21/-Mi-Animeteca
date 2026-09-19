@@ -1407,9 +1407,9 @@
     opacity:0;
     pointer-events:none;
   }
-  .splash-placeholder{ /* marcador temporal — se reemplaza por el logo/animación real */
-    font-family:'IBM Plex Mono',monospace;
-    font-size:13px;
-    letter-spacing:1px;
-    color:var(--muted);
+  .splash-video{ /* animación de carga (video), centrada y con un ancho máximo cómodo */
+    width:100%;
+    max-width:420px;
+    height:auto;
+    display:block;
   }

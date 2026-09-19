@@ -7,17 +7,18 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- jsPDF: solo se usa para el botón "Exportar lista (PDF)" — arma el PDF en tu propio navegador -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <!-- Pantalla de carga: aparece de inmediato y se oculta sola cuando la app ya
-     cargó tu colección. Reemplaza el contenido de #splashScreen por tu logo
-     y tu animación cuando los tengas — el "cuándo mostrar/ocultar" ya está
-     resuelto en el JS (buscar "splashScreen" más abajo), solo cambia lo visual. -->
+     cargó tu colección (mínimo SPLASH_MIN_MS, buscarlo más abajo en el JS,
+     para que la animación alcance a verse). El video vive en assets/splash.mp4. -->
 <div class="splash-screen" id="splashScreen">
-  <div class="splash-placeholder">Cargando…</div>
+  <video class="splash-video" src="assets/splash.mp4" autoplay muted loop playsinline></video>
 </div>
 
 
@@ -163,6 +164,7 @@
     <div class="backup-group">
       <button class="backup-btn" id="exportBtn">Exportar respaldo (.json)</button>
       <button class="backup-btn" id="exportTxtBtn">Exportar lista (.txt)</button>
+      <button class="backup-btn" id="exportPdfBtn">Exportar lista (PDF con carátulas)</button>
       <button class="backup-btn" id="importBtn">Importar respaldo</button>
       <input type="file" id="importFile" accept="application/json" style="display:none;">
     </div>
@@ -244,7 +246,7 @@
   // Se oculta la pantalla de carga cuando ya hay contenido, pero nunca antes
   // de este mínimo — así, aunque todo cargue instantáneo, alcanza a verse tu
   // logo/animación en vez de parpadear un instante y desaparecer.
-  const SPLASH_MIN_MS = 500;
+  const SPLASH_MIN_MS = 2200; // tu animación dura 10s; con esto alcanzas a ver el ícono formarse antes de que se oculte
   function hideSplashScreen(){
     const elapsed = Date.now() - appStartTime;
     const remaining = Math.max(0, SPLASH_MIN_MS - elapsed);
@@ -282,6 +284,7 @@
     librarySearchInput: document.getElementById('librarySearchInput'),
     exportBtn: document.getElementById('exportBtn'),
     exportTxtBtn: document.getElementById('exportTxtBtn'),
+    exportPdfBtn: document.getElementById('exportPdfBtn'),
     importBtn: document.getElementById('importBtn'),
     importFile: document.getElementById('importFile'),
     tabSearch: document.getElementById('tabSearch'),
@@ -2091,6 +2094,139 @@
     setStatus('Lista descargada en formato de texto.', false);
   });
 
+  // ---------- Exportar lista como PDF (con carátulas) ----------
+  // Las imágenes se bajan aquí, en tu navegador (no en un servidor), igual
+  // que cuando la app las muestra normalmente. Si alguna carátula no se puede
+  // leer (bloqueo de CORS del sitio que la aloja, o viene de una URL rota),
+  // ese título se agrega igual, solo que sin miniatura.
+  async function fetchImageAsDataUri(url){
+    if(!url) return null;
+    if(url.indexOf('data:') === 0) return url; // ya es base64 (imagen subida a mano)
+    try{
+      const resp = await fetch(url);
+      if(!resp.ok) return null;
+      const blob = await resp.blob();
+      return await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    }catch(e){
+      return null;
+    }
+  }
+  function dataUriFormat(dataUri){
+    const m = dataUri.match(/^data:image\/(\w+);base64,/i);
+    const type = m ? m[1].toLowerCase() : '';
+    if(type === 'png') return 'PNG';
+    if(type === 'webp') return 'WEBP';
+    return 'JPEG';
+  }
+
+  async function buildAndDownloadPdf(){
+    if(animeList.length === 0){
+      setStatus('Tu animeteca está vacía, no hay nada que exportar todavía.', false);
+      return;
+    }
+    if(!window.jspdf || !window.jspdf.jsPDF){
+      setStatus('No se pudo cargar el generador de PDF (revisa tu conexión) e inténtalo de nuevo.', true);
+      return;
+    }
+
+    try{
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({unit:'mm', format:'a4'});
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const marginX = 15;
+      const marginTop = 28;
+      const marginBottom = 18;
+      const thumbW = 18, thumbH = 25;
+      const rowGap = 5;
+      const lineH = 5;
+
+      const sorted = animeList.slice().sort((a,b) => a.title.localeCompare(b.title, 'es', {sensitivity:'base'}));
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(18);
+      doc.text('MI ANIMETECA', marginX, 15);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(110);
+      doc.text('Exportado: ' + new Date().toLocaleString('es') + '  ·  Total: ' + sorted.length + ' títulos', marginX, 21);
+      doc.setTextColor(0);
+
+      let y = marginTop;
+      let processed = 0;
+      setStatus('Preparando PDF: cargando carátulas (0/' + sorted.length + ')…', false);
+
+      for(const a of sorted){
+        const textX = marginX + thumbW + 6;
+        const textWidth = pageWidth - textX - marginX;
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(12);
+        const titleLines = doc.splitTextToSize(a.title, textWidth);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9.5);
+        const genres = (a.genres && a.genres.length) ? a.genres.join(', ') : 'Sin género';
+        const genreLines = doc.splitTextToSize('Género: ' + genres, textWidth);
+
+        const textBlockHeight = (titleLines.length + genreLines.length + 1) * lineH;
+        const rowHeight = Math.max(thumbH, textBlockHeight);
+
+        if(y + rowHeight > pageHeight - marginBottom){
+          doc.addPage();
+          y = marginTop;
+        }
+
+        const dataUri = await fetchImageAsDataUri(a.image);
+        if(dataUri){
+          try{ doc.addImage(dataUri, dataUriFormat(dataUri), marginX, y, thumbW, thumbH); }
+          catch(e){ /* imagen inválida o formato raro: se sigue sin ella */ }
+        }
+
+        let ty = y + lineH;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(12);
+        doc.setTextColor(20);
+        doc.text(titleLines, textX, ty);
+        ty += titleLines.length * lineH;
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9.5);
+        doc.setTextColor(90);
+        doc.text(genreLines, textX, ty);
+        ty += genreLines.length * lineH;
+
+        const ratingText = (a.rating !== null && a.rating !== undefined)
+          ? (a.rating === RATING_SPECIAL ? '✦ Obra maestra' : 'Calificación: ' + a.rating + '/10')
+          : 'Sin calificar';
+        doc.text(ratingText, textX, ty);
+        doc.setTextColor(0);
+
+        doc.setDrawColor(225);
+        doc.line(marginX, y + rowHeight + 3, pageWidth - marginX, y + rowHeight + 3);
+
+        y += rowHeight + rowGap + 3;
+        processed++;
+        if(processed % 5 === 0 || processed === sorted.length){
+          setStatus('Preparando PDF: cargando carátulas (' + processed + '/' + sorted.length + ')…', false);
+        }
+      }
+
+      const stamp = new Date().toISOString().slice(0,10);
+      doc.save('animeteca-lista-' + stamp + '.pdf');
+      setStatus('PDF descargado con ' + sorted.length + ' títulos.', false);
+    }catch(e){
+      setStatus('No se pudo generar el PDF. Inténtalo de nuevo.', true);
+    }
+  }
+
+  el.exportPdfBtn.addEventListener('click', () => { buildAndDownloadPdf(); });
+
   el.importBtn.addEventListener('click', () => el.importFile.click());
 
   function normalizeImportedItem(item){
@@ -2193,7 +2329,17 @@
       ? (rated.reduce((sum, a) => sum + a.rating, 0) / rated.length)
       : null;
     const masterpieces = animeList.filter(a => a.rating === RATING_SPECIAL).length;
-    const totalEpisodes = animeList.reduce((sum, a) => sum + (Number(a.episodes) || 0), 0);
+
+    // Episodios REALMENTE vistos: un "Completado" cuenta su total de
+    // episodios; un "Viendo"/"Pausado" cuenta hasta donde vas (episodio
+    // actual); "Por Ver"/"Descartado" no suman nada — antes se sumaban los
+    // episodios de TODO lo agregado, incluso lo que ni empezabas a ver.
+    const episodesWatched = animeList.reduce((sum, a) => {
+      const status = a.watchStatus || 'completado';
+      if(status === 'completado') return sum + (Number(a.episodes) || 0);
+      if(status === 'viendo' || status === 'pausado') return sum + (Number(a.currentEpisode) || 0);
+      return sum;
+    }, 0);
 
     const byStatus = {};
     WATCH_STATUSES.forEach(w => byStatus[w.value] = 0);
@@ -2206,7 +2352,7 @@
     animeList.forEach(a => (a.genres || []).forEach(g => { genreCount[g] = (genreCount[g] || 0) + 1; }));
     const topGenres = Object.entries(genreCount).sort((a,b) => b[1] - a[1]).slice(0, 6);
 
-    return {total, avgRating, masterpieces, totalEpisodes, byStatus, topGenres};
+    return {total, avgRating, masterpieces, episodesWatched, byStatus, topGenres};
   }
 
   function renderStats(){
@@ -2222,8 +2368,13 @@
     const statCardsHtml =
       '<div class="stat-cards">' +
         '<div class="stat-card"><div class="stat-num">' + s.total + '</div><div class="stat-label">Animes en tu archivo</div></div>' +
+        '<div class="stat-card"><div class="stat-num">' + s.byStatus['completado'] + '</div><div class="stat-label">Completados</div></div>' +
+        '<div class="stat-card"><div class="stat-num">' + s.byStatus['viendo'] + '</div><div class="stat-label">Viendo</div></div>' +
+        '<div class="stat-card"><div class="stat-num">' + s.byStatus['por-ver'] + '</div><div class="stat-label">Por Ver</div></div>' +
+        '<div class="stat-card"><div class="stat-num">' + s.byStatus['pausado'] + '</div><div class="stat-label">Pausados</div></div>' +
+        '<div class="stat-card"><div class="stat-num">' + s.byStatus['descartado'] + '</div><div class="stat-label">Descartados</div></div>' +
         '<div class="stat-card"><div class="stat-num">' + (s.avgRating !== null ? s.avgRating.toFixed(1) : '—') + '</div><div class="stat-label">Calificación promedio</div></div>' +
-        '<div class="stat-card"><div class="stat-num">' + s.totalEpisodes.toLocaleString('es') + '</div><div class="stat-label">Episodios en total</div></div>' +
+        '<div class="stat-card"><div class="stat-num">' + s.episodesWatched.toLocaleString('es') + '</div><div class="stat-label">Episodios vistos</div></div>' +
         '<div class="stat-card"><div class="stat-num">' + s.masterpieces + ' ✦</div><div class="stat-label">Obras maestra</div></div>' +
       '</div>';
 
