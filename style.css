@@ -1386,30 +1386,3 @@
     line-height:1.5;
     color:var(--muted);
   }
-
-  /* ============================================================
-     PANTALLA DE CARGA — la mecánica de mostrar/ocultar ya está
-     resuelta; el contenido de adentro (#splashScreen en el HTML) es
-     donde va tu logo/animación cuando los tengas.
-     ============================================================ */
-  .splash-screen{
-    position:fixed;
-    inset:0;
-    z-index:500;
-    background:var(--ink);
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    opacity:1;
-    transition:opacity .4s ease;
-  }
-  .splash-screen.hidden{
-    opacity:0;
-    pointer-events:none;
-  }
-  .splash-video{ /* animación de carga (video), centrada y con un ancho máximo cómodo */
-    width:100%;
-    max-width:420px;
-    height:auto;
-    display:block;
-  }

@@ -14,13 +14,6 @@
 </head>
 <body>
 
-<!-- Pantalla de carga: aparece de inmediato y se oculta sola cuando la app ya
-     cargó tu colección (mínimo SPLASH_MIN_MS, buscarlo más abajo en el JS,
-     para que la animación alcance a verse). El video vive en assets/splash.mp4. -->
-<div class="splash-screen" id="splashScreen">
-  <video class="splash-video" src="assets/splash.mp4" autoplay muted loop playsinline></video>
-</div>
-
 
 <div class="app">
 
@@ -242,16 +235,6 @@
 
 <script>
 (function(){
-  const appStartTime = Date.now();
-  // Se oculta la pantalla de carga cuando ya hay contenido, pero nunca antes
-  // de este mínimo — así, aunque todo cargue instantáneo, alcanza a verse tu
-  // logo/animación en vez de parpadear un instante y desaparecer.
-  const SPLASH_MIN_MS = 2200; // tu animación dura 10s; con esto alcanzas a ver el ícono formarse antes de que se oculte
-  function hideSplashScreen(){
-    const elapsed = Date.now() - appStartTime;
-    const remaining = Math.max(0, SPLASH_MIN_MS - elapsed);
-    setTimeout(() => { el.splashScreen.classList.add('hidden'); }, remaining);
-  }
 
   const STORAGE_KEY = 'lista-anime';
   let animeList = [];
@@ -276,7 +259,6 @@
     accentPickerSwatch: document.getElementById('accentPickerSwatch'),
     accentColorInput: document.getElementById('accentColorInput'),
     hoverPreview: document.getElementById('hoverPreview'),
-    splashScreen: document.getElementById('splashScreen'),
     rail: document.getElementById('rail'),
     sortGroup: document.getElementById('sortGroup'),
     genreFilter: document.getElementById('genreFilter'),
@@ -372,7 +354,6 @@
 
     loaded = true;
     render();
-    hideSplashScreen(); // ya hay contenido en pantalla: se puede ocultar la carga
 
     // Las tres tareas de fondo se encadenan (una espera a que termine la
     // anterior) en vez de dispararse todas a la vez — así no se satura la
@@ -2099,22 +2080,71 @@
   // que cuando la app las muestra normalmente. Si alguna carátula no se puede
   // leer (bloqueo de CORS del sitio que la aloja, o viene de una URL rota),
   // ese título se agrega igual, solo que sin miniatura.
+  function withTimeout(promise, ms){
+    return Promise.race([
+      promise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))
+    ]);
+  }
+
+  // Se recuerda qué ruta funcionó la primera vez (directa o por proxy), para
+  // no perder tiempo reintentando la que ya sabemos que falla en las
+  // siguientes cientos de imágenes de una colección grande.
+  let imagePreferredRouteIndex = null;
+  function imageRoutesFor(url){
+    // wsrv.nl está hecho específicamente para esto (servir imágenes de otro
+    // sitio con permiso de lectura entre orígenes), suele ser más confiable
+    // que un proxy genérico para binarios como imágenes.
+    const all = [
+      {index:0, url: 'https://wsrv.nl/?url=' + encodeURIComponent(url.replace(/^https?:\/\//, ''))},
+      {index:1, url: url},
+      {index:2, url: 'https://corsproxy.io/?url=' + encodeURIComponent(url)},
+      {index:3, url: 'https://proxy.cors.sh/' + url}
+    ];
+    if(imagePreferredRouteIndex === null) return all;
+    return [all[imagePreferredRouteIndex]].concat(all.filter(r => r.index !== imagePreferredRouteIndex));
+  }
+
   async function fetchImageAsDataUri(url){
     if(!url) return null;
     if(url.indexOf('data:') === 0) return url; // ya es base64 (imagen subida a mano)
-    try{
-      const resp = await fetch(url);
-      if(!resp.ok) return null;
-      const blob = await resp.blob();
-      return await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
-    }catch(e){
-      return null;
+
+    const routes = imageRoutesFor(url);
+    for(const route of routes){
+      try{
+        const resp = await withTimeout(fetch(route.url), 8000);
+        if(!resp.ok) continue;
+        const blob = await resp.blob();
+        if(!blob || blob.size === 0) continue;
+        const dataUri = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        if(imagePreferredRouteIndex === null) imagePreferredRouteIndex = route.index;
+        return dataUri;
+      }catch(e){
+        // se prueba la siguiente ruta
+      }
     }
+    return null;
+  }
+
+  // Baja todas las carátulas en paralelo, por tandas pequeñas, para que una
+  // colección grande no tarde una eternidad (ni sature la conexión de golpe).
+  async function prefetchImages(sorted, onProgress){
+    const results = new Array(sorted.length).fill(null);
+    const batchSize = 6;
+    let done = 0;
+    for(let i = 0; i < sorted.length; i += batchSize){
+      const batch = sorted.slice(i, i + batchSize);
+      const batchResults = await Promise.all(batch.map(a => fetchImageAsDataUri(a.image)));
+      batchResults.forEach((r, idx) => { results[i + idx] = r; });
+      done += batch.length;
+      onProgress(Math.min(done, sorted.length), sorted.length);
+    }
+    return results;
   }
   function dataUriFormat(dataUri){
     const m = dataUri.match(/^data:image\/(\w+);base64,/i);
@@ -2157,11 +2187,16 @@
       doc.text('Exportado: ' + new Date().toLocaleString('es') + '  ·  Total: ' + sorted.length + ' títulos', marginX, 21);
       doc.setTextColor(0);
 
-      let y = marginTop;
-      let processed = 0;
       setStatus('Preparando PDF: cargando carátulas (0/' + sorted.length + ')…', false);
+      const images = await prefetchImages(sorted, (done, totalCount) => {
+        setStatus('Preparando PDF: cargando carátulas (' + done + '/' + totalCount + ')…', false);
+      });
 
-      for(const a of sorted){
+      let y = marginTop;
+
+      for(let i = 0; i < sorted.length; i++){
+        const a = sorted[i];
+        const dataUri = images[i];
         const textX = marginX + thumbW + 6;
         const textWidth = pageWidth - textX - marginX;
 
@@ -2182,7 +2217,6 @@
           y = marginTop;
         }
 
-        const dataUri = await fetchImageAsDataUri(a.image);
         if(dataUri){
           try{ doc.addImage(dataUri, dataUriFormat(dataUri), marginX, y, thumbW, thumbH); }
           catch(e){ /* imagen inválida o formato raro: se sigue sin ella */ }
@@ -2211,15 +2245,16 @@
         doc.line(marginX, y + rowHeight + 3, pageWidth - marginX, y + rowHeight + 3);
 
         y += rowHeight + rowGap + 3;
-        processed++;
-        if(processed % 5 === 0 || processed === sorted.length){
-          setStatus('Preparando PDF: cargando carátulas (' + processed + '/' + sorted.length + ')…', false);
-        }
       }
 
+      const withImage = images.filter(Boolean).length;
       const stamp = new Date().toISOString().slice(0,10);
       doc.save('animeteca-lista-' + stamp + '.pdf');
-      setStatus('PDF descargado con ' + sorted.length + ' títulos.', false);
+      setStatus(
+        'PDF descargado con ' + sorted.length + ' títulos (' + withImage + ' con carátula' +
+        (withImage < sorted.length ? ', ' + (sorted.length - withImage) + ' sin ella' : '') + ').',
+        false
+      );
     }catch(e){
       setStatus('No se pudo generar el PDF. Inténtalo de nuevo.', true);
     }
@@ -2371,6 +2406,8 @@
         '<div class="stat-card"><div class="stat-num">' + s.byStatus['completado'] + '</div><div class="stat-label">Completados</div></div>' +
         '<div class="stat-card"><div class="stat-num">' + s.byStatus['viendo'] + '</div><div class="stat-label">Viendo</div></div>' +
         '<div class="stat-card"><div class="stat-num">' + s.byStatus['por-ver'] + '</div><div class="stat-label">Por Ver</div></div>' +
+        '<div class="stat-card"><div class="stat-num">' + s.byStatus['pausado'] + '</div><div class="stat-label">Pausados</div></div>' +
+        '<div class="stat-card"><div class="stat-num">' + s.byStatus['descartado'] + '</div><div class="stat-label">Descartados</div></div>' +
         '<div class="stat-card"><div class="stat-num">' + (s.avgRating !== null ? s.avgRating.toFixed(1) : '—') + '</div><div class="stat-label">Calificación promedio</div></div>' +
         '<div class="stat-card"><div class="stat-num">' + s.episodesWatched.toLocaleString('es') + '</div><div class="stat-label">Episodios vistos</div></div>' +
         '<div class="stat-card"><div class="stat-num">' + s.masterpieces + ' ✦</div><div class="stat-label">Obras maestra</div></div>' +

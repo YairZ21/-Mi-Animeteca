@@ -32,7 +32,7 @@ Todo vive en tu navegador. Nada se sube a ningún servidor.
 
 **Respaldo**
 - 💾 **Exportar respaldo (.json)** — toda tu colección en un solo archivo, para restaurarla en otro dispositivo.
-- 📝 **Exportar lista (.txt)** — listado legible con título, género y calificación.
+- 🖨️ **Exportar lista (PDF con carátulas)** — genera de forma instantánea un documento web visual con toda tu colección y sus imágenes. Al abrirlo, solo necesitas presionar `Ctrl + P` (Imprimir) en tu navegador para guardarlo como un PDF perfecto.
 - 📥 **Importar respaldo** — agrega lo del archivo a tu colección, sin duplicar lo que ya tengas.
 
 ## 🚀 Cómo usarla
@@ -58,38 +58,3 @@ El proyecto ya trae todo listo para compilarse como una app real de Windows con 
    ```bash
    pip install pillow
    python3 scripts/generar_iconos.py ruta/a/tu-logo.png
-   ```
-   Esto llena `src-tauri/icons/` con los tamaños que Windows necesita.
-2. **Sube el proyecto a GitHub** (con `git push`, a la rama `main`).
-3. GitHub compila el `.exe` solo — no necesitas instalar Rust ni nada pesado en tu computadora. Puedes verlo correr en la pestaña **Actions** del repositorio.
-4. Cuando termine (unos minutos), entra a esa ejecución y descarga el archivo `MiAnimeteca-Windows` — adentro está el instalador `.exe`.
-
-Si prefieres compilarlo tú mismo en tu PC en vez de esperar a GitHub, instala [Rust](https://www.rust-lang.org/tools/install) y Tauri CLI (`cargo install tauri-cli`), y corre `cargo tauri build` dentro de la carpeta del proyecto.
-
-## 🗃️ Dónde se guardan tus datos
-
-Todo se guarda con `localStorage` **en el navegador donde la abras**. Eso significa:
-
-- Tus datos persisten entre sesiones sin necesidad de internet ni de iniciar sesión en ningún lado.
-- Si la abres en otro navegador o dispositivo, empieza vacía — usa **Exportar respaldo** en un lado e **Importar respaldo** en el otro para llevar tu colección contigo.
-
-## 🛠️ Stack
-
-Dos archivos, sin frameworks, sin build step:
-
-- `index.html` — estructura y JavaScript vanilla
-- `style.css` — todos los estilos (variables CSS nativas, sin preprocesador)
-- [Tauri](https://tauri.app) (opcional) — empaqueta lo anterior como app de escritorio (`.exe`) sin tocar el HTML/CSS/JS
-- [AniList GraphQL API](https://anilist.co/graphiql) para la búsqueda de animes
-- API pública de Google Translate para traducir sinopsis al español
-- `localStorage` para toda la persistencia
-
-Ambos archivos están comentados por secciones, para que sea fácil ubicar qué modificar en el futuro.
-
-## 🤝 Contribuciones
-
-Ideas, mejoras o reportes de bugs son bienvenidos vía *issues* o *pull requests*.
-
-## 📄 Licencia
-
-MIT — usa, copia y modifica libremente.
