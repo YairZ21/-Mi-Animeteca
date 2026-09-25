@@ -1,5 +1,7 @@
 name: Compilar Mi Animeteca para Windows
 
+# Se ejecuta solo: cada vez que subes cambios a la rama "main", o si lo
+# lanzas a mano desde la pestaña "Actions" de GitHub ("Run workflow").
 on:
   push:
     branches: [ main ]
