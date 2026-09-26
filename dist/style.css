@@ -1,0 +1,1388 @@
+  /* ============================================================
+     VARIABLES DE COLOR GLOBALES
+     Cambia cualquier valor aquí y se actualiza en toda la app.
+     ============================================================ */
+  :root{
+    --ink:#0c0e1a;          /* fondo general de la página */
+    --ink-2:#151830;        /* fondo de paneles: modal, tarjetas de resultados, formulario manual */
+    --ink-3:#1f2340;        /* fondo de elementos anidados: etiqueta de tipo, píldoras de género */
+    --paper:#e9ecf6;        /* color de texto principal (claro) sobre fondos oscuros */
+    --paper-2:#1f2438;      /* fondo de los botones del selector de calificación */
+    --line:#2a2f4d;         /* color de bordes normales */
+    --line-2:#3a3f5f;       /* color de bordes secundarios/más claros (hover, separadores) */
+    --red:#e2685f;          /* color del sello de calificación */
+    --accent:#2dd4bf;       /* turquesa: botones activos, enlaces, bordes en foco */
+    --accent-hover:#22b8a6; /* turquesa oscuro: estado hover de botones de acento */
+    --gold:#f4bb43;         /* dorado: calificación especial "obra maestra" */
+    --muted:#8a90ab;        /* texto secundario */
+    --muted-dark:#565c78;   /* texto terciario / placeholders */
+    --shadow:rgba(0,0,0,.5);/* sombra de tarjetas y del modal */
+  }
+
+  *{box-sizing:border-box;}
+
+  /* Fondo y tipografía base de toda la página */
+  body{
+    margin:0;
+    background:var(--ink);
+    color:var(--paper);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+  }
+
+  /* Contenedor centrado que envuelve toda la app */
+  .app{
+    max-width:1180px;
+    margin:0 auto;
+    padding:28px 20px 80px;
+  }
+
+  /* ============================================================
+     ENCABEZADO — título "MI ANIMETECA" y contador de títulos
+     ============================================================ */
+  .header{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    gap:24px;
+    flex-wrap:wrap;
+    border-bottom:2px solid var(--ink-2);
+    padding-bottom:18px;
+    margin-bottom:22px;
+  }
+  .header-right{ /* agrupa el selector de color y el contador */
+    display:flex;
+    align-items:center;
+    gap:14px;
+  }
+  .accent-picker-btn{ /* círculo que muestra/activa el color de acento elegido */
+    width:30px;
+    height:30px;
+    border-radius:50%;
+    border:2px solid var(--line-2);
+    padding:2px;
+    background:transparent;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .accent-picker-btn:hover{border-color:var(--accent);}
+  .accent-picker-swatch{
+    display:block;
+    width:100%;
+    height:100%;
+    border-radius:50%;
+    background:var(--accent);
+  }
+
+  .title-block h1{ /* "MI ANIMETECA" */
+    font-family:'Bebas Neue',sans-serif;
+    font-size:52px;
+    letter-spacing:2px;
+    margin:0;
+    line-height:1;
+    color:var(--paper);
+  }
+  .title-block .sub{ /* subtítulo debajo del título */
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    color:var(--accent);
+    margin-top:6px;
+  }
+
+  .count-badge{ /* contador "N títulos archivados", esquina superior derecha */
+    font-family:'IBM Plex Mono',monospace;
+    font-size:13px;
+    color:var(--muted);
+    text-align:right;
+  }
+  .count-badge b{ /* el número grande dentro del contador */
+    display:block;
+    font-family:'Bebas Neue',sans-serif;
+    font-size:34px;
+    color:var(--accent);
+    letter-spacing:1px;
+  }
+
+  /* ============================================================
+     BARRA DE BÚSQUEDA (pestaña "Buscar anime", caja de AniList)
+     ============================================================ */
+  .search-box{ /* input de texto + botón "Buscar" */
+    display:flex;
+    gap:10px;
+    margin-bottom:8px;
+    flex-wrap:wrap;
+  }
+  .search-box input{
+    flex:1;
+    min-width:220px;
+    background:var(--ink-2);
+    border:1px solid var(--line);
+    color:var(--paper);
+    padding:13px 16px;
+    border-radius:3px;
+    font-family:'Inter',sans-serif;
+    font-size:15px;
+    outline:none;
+  }
+  .search-box input:focus{border-color:var(--accent);}
+  .search-box input::placeholder{color:var(--muted-dark);}
+
+  .search-box button{ /* botón "Buscar" */
+    background:var(--accent);
+    color:var(--ink);
+    border:none;
+    padding:0 22px;
+    border-radius:3px;
+    font-family:'IBM Plex Mono',monospace;
+    font-weight:700;
+    font-size:13px;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    cursor:pointer;
+  }
+  .search-box button:disabled{opacity:.5;cursor:default;}
+  .search-box button:hover:not(:disabled){background:var(--accent-hover);}
+
+  .search-hint{ /* texto de ayuda pequeño (reutilizado también para mensajes puntuales) */
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:var(--muted-dark);
+    margin-bottom:18px;
+  }
+
+  .search-status{ /* mensajes de estado: "Buscando...", errores, confirmaciones */
+    font-family:'IBM Plex Mono',monospace;
+    font-size:13px;
+    color:var(--muted);
+    margin:6px 0 14px;
+  }
+  .search-status.error{color:var(--red);}
+
+  /* ============================================================
+     RESULTADOS DE BÚSQUEDA — tarjetas que aparecen al buscar,
+     antes de abrir el panel de confirmación para agregar
+     ============================================================ */
+  .results{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+    gap:12px;
+    margin-bottom:26px;
+  }
+  .result-card{ /* cada resultado individual de la búsqueda */
+    display:flex;
+    gap:10px;
+    background:var(--ink-2);
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:10px;
+    cursor:pointer;
+    transition:border-color .15s;
+  }
+  .result-card:hover{border-color:var(--accent);}
+  .result-card img{ /* miniatura del póster en el resultado */
+    width:52px;height:74px;object-fit:cover;border-radius:2px;flex-shrink:0;
+    background:#000;
+  }
+  .result-card .r-title{
+    font-size:13.5px;
+    font-weight:600;
+    line-height:1.3;
+    margin-bottom:4px;
+  }
+  .result-card .r-meta{ /* año · episodios */
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10.5px;
+    color:var(--muted);
+  }
+  .result-card .r-add{ /* texto "+ Añadir a la animeteca" */
+    margin-top:6px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10.5px;
+    color:var(--accent);
+    text-transform:uppercase;
+    letter-spacing:.5px;
+  }
+  .result-card.already-added{opacity:.55;} /* ya está en tu animeteca: se atenúa un poco */
+  .result-card .r-add-done{color:var(--muted);}
+
+  /* ============================================================
+     BARRA DE CONTROLES — buscador discreto de tu colección,
+     orden (A-Z / calificación / recientes), tamaño de miniatura
+     y botones de respaldo. Todo en una sola fila que envuelve
+     si no cabe (flex-wrap).
+     ============================================================ */
+  .controls{
+    display:flex;
+    justify-content:flex-start;
+    align-items:center;
+    gap:18px;
+    flex-wrap:wrap;
+    margin:0 0 14px;
+  }
+  .controls.controls-spread{justify-content:space-between;} /* orden a la izquierda, tamaño de vista a la derecha */
+
+  /* IDEA "Barra de controles fija": orden/vista + búsqueda/género + índice
+     alfabético quedan pegados arriba de la pantalla al hacer scroll */
+  .sticky-controls{
+    position:sticky;
+    top:0;
+    z-index:40;
+    background:var(--ink);
+    padding-top:22px;
+    margin-top:4px;
+    margin-bottom:6px;
+  }
+  .sticky-controls::after{ /* sombra sutil que separa la barra del contenido cuando ya está pegada arriba */
+    content:'';
+    position:absolute;
+    left:-20px;
+    right:-20px;
+    bottom:-10px;
+    height:10px;
+    background:linear-gradient(to bottom, rgba(0,0,0,.18), transparent);
+    pointer-events:none;
+  }
+  .sticky-controls .controls:last-of-type{margin-bottom:12px;}
+
+  /* --- Buscador discreto dentro de tu colección ya agregada --- */
+  .library-search{
+    position:relative;
+    display:flex;
+    align-items:center;
+  }
+  .library-search svg{ /* ícono de lupa */
+    position:absolute;
+    left:10px;
+    width:13px;
+    height:13px;
+    color:var(--muted-dark);
+    pointer-events:none;
+  }
+  .library-search input{
+    width:320px;
+    max-width:100%;
+    background:transparent;
+    border:1px solid var(--line);
+    color:var(--muted);
+    font-family:'Inter',sans-serif;
+    font-size:12.5px;
+    padding:7px 10px 7px 30px;
+    border-radius:20px;
+    outline:none;
+    transition:border-color .15s, color .15s, width .15s;
+  }
+  .library-search input::placeholder{color:var(--muted-dark);}
+  .library-search input:focus{
+    border-color:var(--line-2);
+    color:var(--paper);
+    width:360px; /* se agranda un poco al escribir */
+  }
+
+  /* --- Botones de orden: "A-Z" / "Mejor valorados" / "Añadidos recientemente" --- */
+  .sort-group{display:flex;gap:6px;}
+  .sort-btn{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11.5px;
+    letter-spacing:.5px;
+    text-transform:uppercase;
+    background:transparent;
+    border:1px solid var(--line);
+    color:var(--muted);
+    padding:7px 12px;
+    border-radius:20px;
+    cursor:pointer;
+  }
+  .sort-btn.active{ /* botón de orden actualmente seleccionado */
+    background:var(--accent);
+    color:var(--ink);
+    border-color:var(--accent);
+    font-weight:700;
+  }
+
+  /* --- Filtro por género: la píldora ancha debajo de los controles --- */
+  .filter-group{
+    position:relative;
+    display:inline-flex;
+    align-items:center;
+    width:320px;
+    max-width:100%;
+  }
+  .filter-group select{ /* el <select> real, con flecha nativa ocultada */
+    width:100%;
+    appearance:none;
+    -webkit-appearance:none;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12.5px;
+    letter-spacing:.3px;
+    background:var(--ink-2);
+    border:1px solid var(--line);
+    color:var(--paper);
+    padding:7px 42px 7px 20px;
+    border-radius:999px;
+    cursor:pointer;
+    outline:none;
+  }
+  .filter-group select:focus{border-color:var(--accent);}
+  .filter-chevron{ /* la flecha personalizada (SVG) que reemplaza la nativa */
+    position:absolute;
+    right:16px;
+    width:16px;
+    height:16px;
+    color:var(--muted);
+    pointer-events:none;
+  }
+
+  /* --- Botones de respaldo: enviar / exportar json / exportar txt / importar --- */
+  .backup-group{
+    display:flex;
+    gap:6px;
+    flex-wrap:wrap;
+  }
+  .backup-btn{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    letter-spacing:.4px;
+    text-transform:uppercase;
+    background:transparent;
+    border:1px solid var(--line);
+    color:var(--muted);
+    padding:7px 12px;
+    border-radius:20px;
+    cursor:pointer;
+  }
+  .backup-btn:hover{border-color:var(--accent);color:var(--accent);}
+
+  /* --- Índice alfabético A-Z (rail) que aparece con el orden "A-Z" --- */
+  .rail{
+    display:flex;
+    flex-wrap:wrap;
+    gap:4px;
+    max-width:560px;
+  }
+  .rail a{ /* cada letra del índice */
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:var(--muted-dark);
+    text-decoration:none;
+    width:20px;
+    text-align:center;
+  }
+  .rail a.has-items{color:var(--accent);} /* letra con al menos un anime */
+  .rail a.has-items:hover{text-decoration:underline;}
+
+  /* ============================================================
+     ENCABEZADOS DE LETRA — divisores "A", "B", "C"... que agrupan
+     la colección cuando el orden es alfabético
+     ============================================================ */
+  .letter-heading{
+    font-family:'Bebas Neue',sans-serif;
+    font-size:28px;
+    letter-spacing:3px;
+    color:var(--accent);
+    border-bottom:1px solid var(--ink-2);
+    padding-bottom:4px;
+    margin:34px 0 16px;
+  }
+
+  /* ============================================================
+     CUADRÍCULA PRINCIPAL — donde se listan las tarjetas de anime.
+     Las clases .size-medium / .size-small cambian el tamaño según
+     el botón de vista elegido (ver .view-group más abajo).
+     ============================================================ */
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
+    gap:20px;
+  }
+  .grid.size-medium{ /* vista "miniatura mediana" */
+    grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+    gap:14px;
+  }
+  .grid.size-small{ /* vista "miniatura pequeña" */
+    grid-template-columns:repeat(auto-fill,minmax(100px,1fr));
+    gap:10px;
+  }
+
+  /* --- Botones para elegir el tamaño de miniatura (grande/mediana/pequeña) --- */
+  .view-group{display:flex;gap:6px;}
+  .view-btn{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    width:34px;
+    height:32px;
+    background:transparent;
+    border:1px solid var(--line);
+    color:var(--muted);
+    border-radius:6px;
+    cursor:pointer;
+  }
+  .view-btn.active{ /* tamaño de vista actualmente elegido */
+    background:var(--accent);
+    border-color:var(--accent);
+    color:var(--ink);
+  }
+  .view-btn svg{width:16px;height:16px;}
+
+  /* ============================================================
+     TARJETA DE ANIME (vista principal) — póster + etiqueta de
+     tipo + título + sello de calificación superpuesto
+     ============================================================ */
+  @keyframes cardFadeIn{
+    from{opacity:0; transform:translateY(8px);}
+    to{opacity:1; transform:translateY(0);}
+  }
+  .card{
+    background:var(--ink-2);
+    border:1px solid var(--line);
+    border-radius:10px;
+    box-shadow:0 10px 24px var(--shadow);
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+    cursor:pointer;
+    transition:border-color .15s, transform .15s;
+    animation:cardFadeIn .35s ease both; /* aparece con un fundido suave al agregarse o al filtrar/ordenar */
+  }
+  .card:hover{border-color:var(--accent); transform:translateY(-2px);}
+
+  .poster-wrap{ /* envuelve la imagen para poder superponer el sello encima */
+    position:relative;
+  }
+  .poster-wrap .stamp-holder{ /* contenedor del sello, flota sobre la esquina del póster */
+    position:absolute;
+    top:8px;
+    right:8px;
+    z-index:3;
+    background:rgba(8,9,15,.5);
+    border-radius:10px;
+    padding:3px;
+  }
+  .poster-wrap .stamp-holder:empty{display:none;}
+  .poster-wrap .rate-picker{ /* ancho del selector de calificación cuando se abre sobre el póster */
+    width:165px;
+  }
+  .card .thumb{ /* imagen del póster */
+    width:100%;
+    aspect-ratio:2/3;
+    object-fit:cover;
+    display:block;
+    background:#00000033;
+  }
+
+  .type-chip{ /* etiqueta "TV ANIME / OVA / PELÍCULA..." debajo del póster, alineada a la derecha */
+    display:inline-block;
+    width:fit-content;
+    align-self:flex-end;
+    margin-left:auto;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10px;
+    letter-spacing:.5px;
+    text-transform:uppercase;
+    color:var(--muted);
+    background:var(--ink-3);
+    border:1px solid var(--line);
+    padding:4px 11px;
+    border-radius:20px;
+    margin:12px 14px 6px;
+  }
+
+  .card-title{ /* título del anime, debajo de la etiqueta de tipo */
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:15px;
+    line-height:1.3;
+    color:var(--paper);
+    padding:0 14px 16px;
+  }
+
+  /* ============================================================
+     SELLO DE CALIFICACIÓN — el círculo rojo tipo estampa que
+     muestra la nota (o "✦" para la marca especial "obra maestra")
+     ============================================================ */
+  .stamp{ /* IDEA 3: estrella + número, reemplaza el antiguo sello circular */
+    display:flex;
+    align-items:center;
+    gap:5px;
+    cursor:pointer;
+    user-select:none;
+    color:var(--gold);
+    background:rgba(8,9,15,.55);
+    padding:5px 10px;
+    border-radius:20px;
+    font-family:'IBM Plex Mono',monospace;
+    flex-shrink:0;
+  }
+  .stamp .star-icon{width:15px;height:15px;flex-shrink:0;fill:currentColor;} /* ícono de estrella (SVG inline) */
+  .stamp .num{font-size:13px;font-weight:700;line-height:1;} /* número de calificación junto a la estrella */
+  .stamp.empty{color:var(--muted-dark);} /* aún sin calificar: estrella y texto atenuados */
+  .stamp.empty .star-icon{opacity:.55;}
+  .stamp.special{color:var(--gold);text-shadow:0 0 6px rgba(244,187,67,.65);} /* calificación "obra maestra" */
+
+  /* --- Ajustes de tamaño de la tarjeta según la vista elegida (mediana/pequeña) --- */
+  .grid.size-medium .card-title{font-size:12.5px;padding:0 10px 12px;}
+  .grid.size-medium .type-chip{font-size:9px;padding:3px 9px;margin:9px 10px 5px;}
+  .grid.size-medium .stamp{padding:3px 7px;gap:3px;}
+  .grid.size-medium .stamp .star-icon{width:11px;height:11px;}
+  .grid.size-medium .stamp .num{font-size:10px;}
+  .grid.size-medium .poster-wrap .stamp-holder{top:5px;right:5px;}
+  .grid.size-medium .poster-wrap .rate-picker{width:132px;}
+  .grid.size-medium .rate-picker button{font-size:9px;padding:3px 0;}
+
+  .grid.size-small .card-title{
+    font-size:11px;
+    padding:0 8px 10px;
+    display:-webkit-box;
+    -webkit-line-clamp:1;
+    -webkit-box-orient:vertical;
+    overflow:hidden;
+  }
+  .grid.size-small .type-chip{display:none;} /* se oculta para no saturar la miniatura pequeña */
+  .grid.size-small .stamp{padding:2px 5px;gap:2px;}
+  .grid.size-small .stamp .star-icon{width:9px;height:9px;}
+  .grid.size-small .stamp .num{font-size:8.5px;}
+  .grid.size-small .poster-wrap .stamp-holder{top:4px;right:4px;padding:2px;border-radius:7px;}
+  .grid.size-small .poster-wrap .rate-picker{width:112px;}
+  .grid.size-small .rate-picker button{font-size:8px;padding:2px 0;}
+
+  /* ============================================================
+     SELECTOR DE CALIFICACIÓN (grilla de botones 1 a 10, con
+     medios puntos, que se abre al tocar el sello). Se usa tanto
+     en la tarjeta principal como en el modal de detalle y en el
+     panel de "agregar".
+     ============================================================ */
+  .rate-picker{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:4px;
+    width:100%;
+  }
+  .rate-picker button{ /* cada número/opción de calificación */
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    font-weight:700;
+    padding:5px 0;
+    border-radius:3px;
+    border:1px solid var(--line);
+    background:var(--paper-2);
+    color:var(--paper);
+    cursor:pointer;
+  }
+  .rate-picker button:hover{background:var(--red);color:var(--paper);border-color:var(--red);}
+  .rate-picker button.selected{background:var(--red);color:var(--paper);border-color:var(--red);} /* opción ya elegida */
+  .rate-picker button.special-option{ /* el botón "✦ obra maestra", ocupa toda la fila */
+    grid-column:span 4;
+    border-color:var(--gold);
+    color:var(--gold);
+    font-size:14px;
+  }
+  .rate-picker button.special-option:hover,
+  .rate-picker button.special-option.selected{
+    background:var(--gold);
+    color:var(--ink);
+    border-color:var(--gold);
+  }
+
+  /* ============================================================
+     ESTADO VACÍO — mensaje cuando la colección o un filtro no
+     tiene resultados
+     ============================================================ */
+  .empty-state{
+    text-align:center;
+    padding:70px 20px;
+    color:var(--muted);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:13px;
+    border:1px dashed var(--ink-2);
+    border-radius:6px;
+    margin-top:20px;
+  }
+  .empty-state .big{ /* título grande dentro del estado vacío */
+    font-family:'Bebas Neue',sans-serif;
+    font-size:30px;
+    color:var(--paper);
+    letter-spacing:2px;
+    margin-bottom:10px;
+  }
+
+  /* Ajustes para pantallas angostas (celular) */
+  @media (max-width:640px){
+    .title-block h1{font-size:38px;}
+    .card .thumb{height:190px;}
+  }
+
+  /* ============================================================
+     FORMULARIO "AGREGAR MANUALMENTE" — pestañas Buscar/Manual y
+     los campos del formulario (título, imagen, género, tipo,
+     año, episodios, temporada, calificación, sinopsis)
+     ============================================================ */
+  .add-mode-row{ /* fila con las dos pestañas: "Buscar anime" / "Agregar manualmente" */
+    display:flex;
+    gap:8px;
+    margin-bottom:10px;
+  }
+  .mode-tab{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11.5px;
+    letter-spacing:.4px;
+    text-transform:uppercase;
+    background:transparent;
+    border:1px solid var(--line);
+    color:var(--muted);
+    padding:8px 14px;
+    border-radius:20px;
+    cursor:pointer;
+  }
+  .mode-tab.active{ /* pestaña actualmente seleccionada */
+    background:var(--accent);
+    border-color:var(--accent);
+    color:var(--ink);
+    font-weight:700;
+  }
+
+  /* Pestañas de nivel superior: Colección / Estadísticas (justo debajo del encabezado) */
+  .page-tabs{
+    display:flex;
+    gap:8px;
+    margin:22px 0 26px;
+    border-bottom:1px solid var(--line);
+    padding-bottom:18px;
+  }
+  .page-tab{
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:13.5px;
+    background:transparent;
+    border:1px solid var(--line);
+    color:var(--muted);
+    padding:9px 18px;
+    border-radius:20px;
+    cursor:pointer;
+  }
+  .page-tab.active{background:var(--accent);border-color:var(--accent);color:var(--ink);}
+
+  /* "Mis Listas": filtro de la colección por estado de visto */
+  .watch-tabs-heading{
+    font-family:'Inter',sans-serif;
+    font-weight:700;
+    font-size:19px;
+    color:var(--paper);
+    margin:6px 0 12px;
+  }
+  .watch-tabs{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    margin-bottom:22px;
+  }
+  .watch-tab{
+    font-family:'Inter',sans-serif;
+    font-size:13px;
+    background:var(--ink-2);
+    border:1px solid var(--line);
+    color:var(--muted);
+    padding:9px 18px;
+    border-radius:20px;
+    cursor:pointer;
+  }
+  .watch-tab.active{ /* la lista seleccionada, ej. "Todo" en el estado inicial */
+    background:var(--accent);
+    border-color:var(--accent);
+    color:var(--ink);
+    font-weight:600;
+  }
+
+  /* ---------- Panel de Estadísticas ---------- */
+  .stats-heading{
+    font-family:'Bebas Neue',sans-serif;
+    font-size:30px;
+    letter-spacing:2px;
+    color:var(--gold);
+    margin-bottom:20px;
+  }
+  .stat-cards{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+    gap:16px;
+    margin-bottom:32px;
+  }
+  .stat-card{
+    background:var(--ink-2);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:20px;
+    text-align:center;
+  }
+  .stat-num{ /* número grande: total, promedio, episodios, obras maestra */
+    font-family:'Bebas Neue',sans-serif;
+    font-size:38px;
+    color:var(--accent);
+    letter-spacing:1px;
+  }
+  .stat-label{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:var(--muted);
+    text-transform:uppercase;
+    letter-spacing:.4px;
+    margin-top:4px;
+  }
+  .stats-columns{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:28px;
+  }
+  .stats-block{
+    background:var(--ink-2);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:20px 22px;
+  }
+  .stats-block-title{
+    font-family:'Inter',sans-serif;
+    font-weight:700;
+    font-size:15px;
+    color:var(--paper);
+    margin-bottom:16px;
+  }
+  .stat-bar-row{
+    display:grid;
+    grid-template-columns:110px 1fr 30px;
+    align-items:center;
+    gap:10px;
+    margin-bottom:10px;
+    font-size:12.5px;
+  }
+  .stat-bar-label{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .stat-bar-track{background:var(--ink-3);border-radius:6px;height:8px;overflow:hidden;}
+  .stat-bar-fill{background:var(--accent);height:100%;border-radius:6px;}
+  .stat-bar-fill.genre-fill{background:var(--gold);}
+  .stat-bar-count{color:var(--paper);text-align:right;font-family:'IBM Plex Mono',monospace;}
+
+  @media (max-width:640px){
+    .stats-columns{grid-template-columns:1fr;}
+  }
+
+  .manual-form{ /* panel completo del formulario manual (oculto hasta elegir esa pestaña) */
+    background:var(--ink-2);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:18px;
+    margin-bottom:20px;
+    display:none;
+  }
+  .manual-form.open{display:block;}
+  .manual-grid{ /* columna de la vista previa de imagen + columna de campos */
+    display:grid;
+    grid-template-columns:120px 1fr;
+    gap:14px;
+  }
+  .manual-form label{
+    display:block;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10.5px;
+    text-transform:uppercase;
+    letter-spacing:.5px;
+    color:var(--muted);
+    margin-bottom:5px;
+  }
+  .manual-form input[type="text"],
+  .manual-form input[type="url"],
+  .manual-form textarea,
+  .manual-form select{
+    width:100%;
+    background:var(--ink);
+    border:1px solid var(--line);
+    color:var(--paper);
+    padding:9px 11px;
+    border-radius:3px;
+    font-family:'Inter',sans-serif;
+    font-size:13.5px;
+    outline:none;
+  }
+  .manual-form input:focus,
+  .manual-form textarea:focus,
+  .manual-form select:focus{border-color:var(--accent);}
+  .manual-form textarea{resize:vertical;min-height:70px;} /* campo de sinopsis */
+  .manual-form .field{margin-bottom:14px;}
+  .manual-two-col{ /* pares de campos lado a lado: Tipo/Año, Episodios/Temporada */
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:14px;
+  }
+  .manual-two-col > *{min-width:0;} /* evita que un select/texto ancho empuje la 2da columna fuera del modal (quedaría recortada por overflow:hidden) */
+  .manual-preview{ /* vista previa de la imagen subida o pegada por URL */
+    width:100px;
+    height:140px;
+    object-fit:cover;
+    border-radius:3px;
+    background:#00000044;
+    border:1px dashed var(--line-2);
+    display:block;
+  }
+  .manual-form .file-row{ /* texto "Subir imagen desde tu dispositivo" + input de archivo */
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10.5px;
+    color:var(--muted-dark);
+    margin-top:6px;
+  }
+  .manual-form .file-row input{font-size:11px;color:var(--muted);}
+  .manual-actions{ /* botones "Añadir a mi animeteca" / "Cancelar" */
+    display:flex;
+    gap:10px;
+    margin-top:6px;
+  }
+  .btn-primary{ /* botón de acción principal (dorado/turquesa, relleno) — se reutiliza en varios formularios */
+    background:var(--accent);
+    color:var(--ink);
+    border:none;
+    padding:11px 24px;
+    border-radius:24px;
+    font-family:'IBM Plex Mono',monospace;
+    font-weight:700;
+    font-size:12.5px;
+    letter-spacing:.5px;
+    text-transform:uppercase;
+    cursor:pointer;
+    transition:transform .12s ease, box-shadow .12s ease;
+  }
+  .btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(0,0,0,.3);}
+
+  .btn-ghost{ /* botón secundario, solo borde — "Cancelar", "Editar", "Quitar" */
+    background:transparent;
+    border:1px solid var(--line-2);
+    color:var(--muted);
+    padding:11px 20px;
+    border-radius:24px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12.5px;
+    letter-spacing:.5px;
+    text-transform:uppercase;
+    cursor:pointer;
+    transition:border-color .12s ease, color .12s ease;
+  }
+  .btn-ghost:hover{border-color:var(--accent);color:var(--paper);}
+
+  /* ============================================================
+     MODAL DE DETALLE / EDICIÓN — se abre al hacer clic en una
+     tarjeta ya agregada. Muestra toda la información y permite
+     editarla o quitar el anime. También se reutiliza (con otro
+     contenido) como panel de confirmación al agregar por búsqueda.
+     ============================================================ */
+  .modal-overlay{ /* fondo oscuro semitransparente que cubre toda la pantalla */
+    display:flex;
+    position:fixed;
+    inset:0;
+    background:rgba(10,11,18,.75);
+    z-index:100;
+    align-items:flex-start;
+    justify-content:center;
+    padding:40px 16px;
+    overflow-y:auto;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .18s ease;
+  }
+  .modal-overlay.open{opacity:1;pointer-events:auto;}
+
+  .modal-card{ /* el panel central del modal */
+    background-color:var(--ink-2);
+    background-size:cover;
+    background-position:top center;
+    background-repeat:no-repeat;
+    border:1px solid var(--line-2);
+    border-radius:10px;
+    max-width:760px;
+    width:100%;
+    padding:26px;
+    position:relative;
+    overflow:hidden;
+    box-shadow:0 20px 60px rgba(0,0,0,.6);
+    transform:scale(.96) translateY(10px);
+    transition:transform .18s ease;
+  }
+  .modal-overlay.open .modal-card{transform:scale(1) translateY(0);}
+  /* IDEA 2: cuando el anime tiene imagen, el JS pone esa foto como
+     background-image del modal-card; este degradado la desvanece hacia el
+     color sólido en la mitad inferior, para que siga siendo legible. */
+  .modal-card::before{
+    content:'';
+    position:absolute;
+    inset:0;
+    background:linear-gradient(to bottom, rgba(10,11,18,.25) 0%, var(--ink-2) 58%);
+    pointer-events:none;
+    z-index:0;
+  }
+  .modal-card > *{position:relative;z-index:1;}
+
+  /* Diálogo de confirmación propio (reemplaza confirm() del navegador) */
+  .confirm-overlay{
+    display:flex;
+    position:fixed;
+    inset:0;
+    background:rgba(10,11,18,.75);
+    z-index:200;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .15s ease;
+  }
+  .confirm-overlay.open{opacity:1;pointer-events:auto;}
+  .confirm-card{
+    background:var(--ink-2);
+    border:1px solid var(--line-2);
+    border-radius:10px;
+    max-width:380px;
+    width:100%;
+    padding:22px;
+    box-shadow:0 20px 60px rgba(0,0,0,.6);
+    transform:scale(.94) translateY(8px);
+    transition:transform .15s ease;
+  }
+  .confirm-overlay.open .confirm-card{transform:scale(1) translateY(0);}
+  .confirm-message{
+    font-family:'Inter',sans-serif;
+    font-size:14px;
+    line-height:1.5;
+    color:var(--paper);
+    white-space:pre-line; /* respeta los saltos de línea \n del mensaje */
+    margin-bottom:18px;
+  }
+  .confirm-actions{
+    display:flex;
+    justify-content:flex-end;
+    gap:10px;
+  }
+  .btn-danger{ /* variante roja del botón principal, para acciones destructivas */
+    background:var(--red) !important;
+    color:var(--paper) !important;
+  }
+
+  .field-error{border-color:var(--red) !important;} /* campo con error de validación (ej. título vacío al editar) */
+
+  .modal-close{ /* botón "×" para cerrar el modal */
+    position:absolute;
+    top:14px;
+    right:16px;
+    background:none;
+    border:none;
+    color:var(--muted);
+    font-size:22px;
+    line-height:1;
+    cursor:pointer;
+  }
+  .modal-close:hover{color:var(--paper);}
+
+  .modal-body{ /* columna del póster + columna de información */
+    display:grid;
+    grid-template-columns:190px 1fr;
+    gap:24px;
+  }
+  .modal-body > *{min-width:0;} /* la columna de texto no debe poder empujar el ancho del modal */
+  .modal-poster{ /* imagen del póster dentro del modal */
+    width:100%;
+    height:270px;
+    object-fit:cover;
+    border-radius:6px;
+    background:#00000044;
+  }
+  .modal-title{ /* título del anime dentro del modal */
+    font-family:'Inter',sans-serif;
+    font-weight:700;
+    font-size:26px;
+    color:var(--paper);
+    line-height:1.2;
+    margin-bottom:8px;
+  }
+  .modal-alt-titles{ /* nombres alternativos: japonés nativo / inglés, en letra pequeña */
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11.5px;
+    color:var(--muted);
+    margin:-4px 0 12px;
+    line-height:1.4;
+  }
+  .modal-badges{ /* línea "TV Anime · 2024 · Primera Temporada · Finalizado" */
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    color:var(--muted);
+    margin-bottom:14px;
+  }
+
+  /* IDEA "Progreso de episodios" */
+  .episode-progress{margin:-4px 0 14px;}
+  .episode-progress-label{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11.5px;
+    color:var(--muted);
+    margin-bottom:5px;
+  }
+  .episode-progress-track{
+    height:6px;
+    background:var(--ink-3);
+    border-radius:4px;
+    overflow:hidden;
+  }
+  .episode-progress-fill{
+    height:100%;
+    background:var(--accent);
+    border-radius:4px;
+    transition:width .25s ease;
+  }
+
+  /* IDEA "Próximos episodios" */
+  .next-episode{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    color:var(--accent);
+    margin:-4px 0 14px;
+  }
+
+  /* IDEA "Notas personales" */
+  .personal-notes{
+    background:var(--ink-3);
+    border:1px solid var(--line);
+    border-left:3px solid var(--accent);
+    border-radius:6px;
+    padding:10px 12px;
+    margin:0 0 14px;
+  }
+  .personal-notes-label{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10.5px;
+    text-transform:uppercase;
+    letter-spacing:.5px;
+    color:var(--muted);
+    margin-bottom:5px;
+  }
+  .personal-notes-text{
+    font-family:'Inter',sans-serif;
+    font-size:13px;
+    line-height:1.5;
+    color:var(--paper);
+    white-space:pre-line;
+  }
+
+  .modal-genres{ /* fila de píldoras de género */
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    margin-bottom:14px;
+  }
+  .genre-pill{ /* cada etiqueta individual de género */
+    background:var(--ink-3);
+    border:1px solid var(--line-2);
+    color:var(--paper);
+    font-size:12px;
+    padding:5px 13px;
+    border-radius:20px;
+  }
+  .modal-synopsis{ /* caja de la sinopsis, con scroll si es muy larga */
+    font-size:13.5px;
+    line-height:1.6;
+    color:#c8cad9;
+    max-height:130px;
+    overflow-y:auto;
+    padding-right:8px;
+    margin-bottom:18px;
+  }
+  .modal-synopsis::-webkit-scrollbar{width:6px;}
+  .modal-synopsis::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:3px;}
+
+  /* IDEA 1: vista previa clicable de precuela/secuela, dentro de la ficha de detalle */
+  .modal-related{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+    margin:-4px 0 18px;
+  }
+  .related-card{
+    display:flex;
+    align-items:center;
+    gap:9px;
+    background:rgba(8,9,15,.45);
+    border:1px solid var(--line-2);
+    border-radius:8px;
+    padding:7px;
+    cursor:pointer;
+    transition:border-color .15s;
+  }
+  .related-card:hover{border-color:var(--accent);}
+  .related-card img{
+    width:36px;
+    height:50px;
+    object-fit:cover;
+    border-radius:4px;
+    flex-shrink:0;
+    background:#00000044;
+  }
+  .related-text{display:flex;flex-direction:column;gap:2px;min-width:0;}
+  .related-label{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:9.5px;
+    text-transform:uppercase;
+    letter-spacing:.4px;
+    color:var(--muted);
+  }
+  .related-title{
+    font-family:'Inter',sans-serif;
+    font-size:12px;
+    font-weight:600;
+    color:var(--paper);
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  @media (max-width:520px){
+    .modal-related{grid-template-columns:1fr;}
+  }
+
+  /* Selector visual de precuela/secuela (con carátulas), usado en agregar y editar */
+  .link-picker{position:relative;}
+  .link-picker-trigger{
+    display:flex;
+    align-items:center;
+    gap:9px;
+    background:var(--ink);
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:7px 10px;
+    cursor:pointer;
+    min-height:44px;
+  }
+  .link-picker-trigger:hover{border-color:var(--accent);}
+  .link-picker-trigger img{
+    width:30px;
+    height:42px;
+    object-fit:cover;
+    border-radius:3px;
+    flex-shrink:0;
+    background:#00000044;
+  }
+  .link-picker-title{
+    font-family:'Inter',sans-serif;
+    font-size:13px;
+    color:var(--paper);
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    flex:1;
+  }
+  .link-picker-placeholder{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    color:var(--muted);
+  }
+  .link-picker-clear{
+    background:none;
+    border:none;
+    color:var(--muted);
+    font-size:14px;
+    cursor:pointer;
+    padding:2px 4px;
+    flex-shrink:0;
+  }
+  .link-picker-clear:hover{color:var(--red);}
+
+  .link-picker-panel{
+    display:none;
+    position:absolute;
+    top:calc(100% + 6px);
+    left:0;
+    right:0;
+    z-index:20;
+    background:var(--ink-2);
+    border:1px solid var(--line-2);
+    border-radius:8px;
+    box-shadow:0 12px 30px rgba(0,0,0,.5);
+    padding:10px;
+  }
+  .link-picker.open .link-picker-panel{display:block;}
+  .link-picker-search{
+    width:100%;
+    box-sizing:border-box;
+    background:var(--ink);
+    border:1px solid var(--line);
+    color:var(--paper);
+    padding:7px 10px;
+    border-radius:4px;
+    font-family:'Inter',sans-serif;
+    font-size:12.5px;
+    outline:none;
+    margin-bottom:8px;
+  }
+  .link-picker-search:focus{border-color:var(--accent);}
+  .link-picker-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(72px,1fr));
+    gap:8px;
+    max-height:220px;
+    overflow-y:auto;
+    padding-right:2px;
+  }
+  .link-picker-grid::-webkit-scrollbar{width:6px;}
+  .link-picker-grid::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:3px;}
+  .link-picker-tile{
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+    cursor:pointer;
+    border:1px solid transparent;
+    border-radius:5px;
+    padding:3px;
+  }
+  .link-picker-tile:hover{border-color:var(--accent);background:rgba(255,255,255,.03);}
+  .link-picker-tile img{
+    width:100%;
+    aspect-ratio:2/3;
+    object-fit:cover;
+    border-radius:3px;
+    background:#00000044;
+  }
+  .link-picker-tile span{
+    font-family:'Inter',sans-serif;
+    font-size:10.5px;
+    color:var(--paper);
+    line-height:1.25;
+    display:-webkit-box;
+    -webkit-line-clamp:2;
+    -webkit-box-orient:vertical;
+    overflow:hidden;
+  }
+  .link-picker-empty{
+    grid-column:1/-1;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11.5px;
+    color:var(--muted);
+    text-align:center;
+    padding:18px 0;
+  }
+
+  .modal-foot{ /* fila inferior del modal: sello de calificación + botones de acción */
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:12px;
+    border-top:1px solid var(--line);
+    padding-top:16px;
+    margin-top:6px;
+  }
+  .modal-rating-block{display:flex;align-items:center;gap:12px;} /* contenedor del sello dentro del modal */
+  .modal-actions{display:flex;gap:10px;flex-wrap:wrap;} /* botones "Editar" / "Quitar del archivo" */
+
+  /* --- Campos del modo edición (cuando tocas "Editar" en el modal) --- */
+  .modal-edit-field{margin-bottom:12px;}
+  .modal-edit-field label{
+    display:block;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10.5px;
+    text-transform:uppercase;
+    letter-spacing:.5px;
+    color:var(--muted);
+    margin-bottom:5px;
+  }
+  .auto-guess-tag{ /* aviso junto a "Temporada" cuando se adivinó del título */
+    text-transform:none;
+    letter-spacing:0;
+    color:var(--accent);
+    font-weight:400;
+  }
+  .modal-edit-field input,
+  .modal-edit-field textarea,
+  .modal-edit-field select{
+    width:100%;
+    box-sizing:border-box;
+    background:var(--ink);
+    border:1px solid var(--line);
+    color:var(--paper);
+    padding:9px 12px;
+    border-radius:8px;
+    font-family:'Inter',sans-serif;
+    font-size:13.5px;
+    outline:none;
+    transition:border-color .15s, box-shadow .15s;
+  }
+  .modal-edit-field input:focus,
+  .modal-edit-field textarea:focus,
+  .modal-edit-field select:focus{
+    border-color:var(--accent);
+    box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+  }
+  .modal-edit-field textarea{min-height:90px;resize:vertical;} /* campo de sinopsis editable */
+
+  /* IDEA "interfaz más bonita al agregar/editar": agrupa los campos en
+     secciones con encabezado e ícono, en vez de una lista plana de campos */
+  .field-sections{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    margin-top:8px;
+  }
+  .field-section{
+    background:var(--ink-3);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:14px 16px;
+  }
+  .field-section-title{
+    font-family:'Inter',sans-serif;
+    font-weight:700;
+    font-size:12.5px;
+    color:var(--paper);
+    margin-bottom:12px;
+    display:flex;
+    align-items:center;
+    gap:7px;
+  }
+  .field-section .manual-two-col:not(:last-child),
+  .field-section .modal-edit-field:not(:last-child){margin-bottom:12px;}
+  .field-section .modal-edit-field{margin-bottom:0;}
+
+  /* Ajustes del modal para pantallas angostas (celular) */
+  @media (max-width:560px){
+    .modal-body{grid-template-columns:1fr;}
+    .modal-poster{height:220px;}
+  }
+
+  /* IDEA "Vista previa al pasar el mouse" */
+  .hover-preview{
+    display:none;
+    position:fixed;
+    z-index:150;
+    max-width:260px;
+    background:var(--ink-2);
+    border:1px solid var(--line-2);
+    border-radius:8px;
+    padding:12px 14px;
+    box-shadow:0 16px 36px rgba(0,0,0,.55);
+    pointer-events:none;
+    opacity:0;
+    transition:opacity .12s ease;
+  }
+  .hover-preview.visible{opacity:1;}
+  .hover-preview-title{
+    font-family:'Inter',sans-serif;
+    font-weight:700;
+    font-size:13.5px;
+    color:var(--paper);
+    margin-bottom:6px;
+    line-height:1.3;
+  }
+  .hover-preview-meta{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10.5px;
+    color:var(--accent);
+    margin-bottom:6px;
+  }
+  .hover-preview-text{
+    font-family:'Inter',sans-serif;
+    font-size:12px;
+    line-height:1.5;
+    color:var(--muted);
+  }

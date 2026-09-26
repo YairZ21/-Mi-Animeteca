@@ -1,0 +1,2487 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mi Animeteca</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- jsPDF: solo se usa para el botón "Exportar lista (PDF)" — arma el PDF en tu propio navegador -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+
+<div class="app">
+
+  <!-- Encabezado: título de la app y contador de títulos guardados -->
+  <div class="header">
+    <div class="title-block">
+      <h1 id="mainTitle">MI ANIMETECA</h1>
+      <div class="sub" id="mainSubtitle">Catálogo personal · lo que ya viste, ordenado y calificado</div>
+    </div>
+    <div class="header-right">
+      <!-- IDEA "Selector de color de acento": círculo que abre un <input type="color">
+           nativo (funciona en cualquier navegador/celular sin librerías extra) -->
+      <button class="accent-picker-btn" id="accentPickerBtn" title="Elegir color de acento">
+        <span class="accent-picker-swatch" id="accentPickerSwatch"></span>
+      </button>
+      <input type="color" id="accentColorInput" style="position:absolute;width:0;height:0;opacity:0;pointer-events:none;">
+
+      <div class="count-badge" id="countBadge">
+        <b id="countNum">0</b>
+        títulos archivados
+      </div>
+    </div>
+  </div>
+
+  <!-- Pestañas de nivel superior: la colección normal, o el panel de estadísticas -->
+  <div class="page-tabs" id="pageTabs">
+    <button class="page-tab active" data-page="collection">Colección</button>
+    <button class="page-tab" data-page="stats">📊 Estadísticas</button>
+  </div>
+
+  <div id="collectionView">
+
+  <!-- Pestañas para elegir cómo agregar un anime: por búsqueda o a mano -->
+  <div class="add-mode-row">
+    <button class="mode-tab active" id="tabSearch">Buscar anime</button>
+    <button class="mode-tab" id="tabManual">Agregar manualmente</button>
+  </div>
+
+  <!-- Modo "Buscar anime": caja de búsqueda (AniList) + resultados -->
+  <div class="search-box" id="searchBox">
+    <input id="searchInput" type="text" placeholder="Buscar un anime para añadirlo (ej: Fullmetal Alchemist)" />
+    <button id="searchBtn">Buscar</button>
+  </div>
+  <div class="search-status" id="searchStatus" style="display:none;"></div>
+  <div class="results" id="results"></div><!-- aquí se insertan las tarjetas de resultados al buscar -->
+
+  <!-- Modo "Agregar manualmente": formulario completo sin depender de internet -->
+  <div class="manual-form" id="manualForm">
+    <div class="manual-grid">
+      <div>
+        <img id="manualPreview" class="manual-preview" src="" alt="" style="display:none;">
+        <div class="file-row">
+          <label style="margin-top:10px;">Subir imagen desde tu dispositivo</label>
+          <input type="file" id="manualFile" accept="image/*">
+        </div>
+      </div>
+      <div>
+        <div class="field">
+          <label>Título *</label>
+          <input type="text" id="manualTitle" placeholder="Nombre del anime">
+        </div>
+        <div class="field">
+          <label>URL de imagen (opcional si subiste un archivo)</label>
+          <input type="url" id="manualImageUrl" placeholder="https://...">
+        </div>
+        <div class="field">
+          <label>Género(s) — separados por coma</label>
+          <input type="text" id="manualGenres" placeholder="Acción, Aventura, Fantasía">
+        </div>
+        <div class="manual-two-col">
+          <div class="field">
+            <label>Tipo</label>
+            <select id="manualType"></select><!-- opciones cargadas por JS: typeOptionsHtml() -->
+          </div>
+          <div class="field">
+            <label>Año de emisión</label>
+            <input type="text" inputmode="numeric" id="manualYear" placeholder="2024">
+          </div>
+        </div>
+        <div class="manual-two-col">
+          <div class="field">
+            <label>Episodios</label>
+            <input type="text" inputmode="numeric" id="manualEpisodes" placeholder="12">
+          </div>
+          <div class="field">
+            <label>Temporada</label>
+            <select id="manualSeasonNumber"></select><!-- opciones cargadas por JS: seasonOptionsHtml() -->
+          </div>
+        </div>
+        <div class="manual-two-col">
+          <div class="field">
+            <label>Calificación (opcional)</label>
+            <select id="manualRating"></select><!-- opciones cargadas por JS: ratingOptionsHtml() -->
+          </div>
+          <div class="field">
+            <label>Estado</label>
+            <select id="manualWatchStatus"></select><!-- opciones cargadas por JS: watchStatusOptionsHtml() -->
+          </div>
+        </div>
+        <div class="field">
+          <label>Episodio actual (progreso, opcional)</label>
+          <input type="text" inputmode="numeric" id="manualCurrentEpisode" placeholder="ej. 8">
+        </div>
+        <div class="field">
+          <label>Precuela (vínculo manual)</label>
+          <div id="manualLinkPrequelPicker"></div><!-- se llena con buildLinkPickerHtml() al abrir esta pestaña -->
+        </div>
+        <div class="field">
+          <label>Secuela (vínculo manual)</label>
+          <div id="manualLinkSequelPicker"></div><!-- se llena con buildLinkPickerHtml() al abrir esta pestaña -->
+        </div>
+        <div class="field">
+          <label>Sinopsis</label>
+          <textarea id="manualSynopsis" placeholder="Breve descripción del anime..."></textarea>
+        </div>
+        <div class="field">
+          <label>Notas personales (opcional, aparte de la sinopsis)</label>
+          <textarea id="manualNotes" placeholder="Tus propios comentarios sobre este anime..."></textarea>
+        </div>
+        <div class="manual-actions">
+          <button class="btn-primary" id="manualSubmit">Añadir a mi animeteca</button>
+          <button class="btn-ghost" id="manualCancel">Cancelar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- "Mis Listas": filtra la colección por estado de visto -->
+  <div class="watch-tabs-heading">Mis Listas</div>
+  <div class="watch-tabs" id="watchTabs">
+    <button class="watch-tab active" data-status="todo">Todo</button>
+    <button class="watch-tab" data-status="viendo">Viendo</button>
+    <button class="watch-tab" data-status="por-ver">Por Ver</button>
+    <button class="watch-tab" data-status="completado">Completado</button>
+    <button class="watch-tab" data-status="pausado">Pausado</button>
+    <button class="watch-tab" data-status="descartado">Descartado</button>
+  </div>
+
+  <!-- Respaldo: se usa poco, no necesita quedar fijo al hacer scroll -->
+  <div class="controls">
+    <div class="backup-group">
+      <button class="backup-btn" id="exportBtn">Exportar respaldo (.json)</button>
+      <button class="backup-btn" id="exportTxtBtn">Exportar lista (.txt)</button>
+      <button class="backup-btn" id="exportPdfBtn">Exportar lista (PDF con carátulas)</button>
+      <button class="backup-btn" id="importBtn">Importar respaldo</button>
+      <input type="file" id="importFile" accept="application/json" style="display:none;">
+    </div>
+  </div>
+
+  <!-- IDEA "Barra de controles fija": orden/vista + búsqueda/género + índice
+       alfabético se quedan visibles arriba al hacer scroll en colecciones grandes -->
+  <div class="sticky-controls">
+    <div class="controls controls-spread">
+      <div class="sort-group" id="sortGroup"><!-- orden: alfabético / calificación / recientes -->
+        <button class="sort-btn active" data-sort="alpha">A – Z</button>
+        <button class="sort-btn" data-sort="rating">Mejor valorados</button>
+        <button class="sort-btn" data-sort="recent">Añadidos recientemente</button>
+      </div>
+      <div class="view-group" id="viewGroup"><!-- tamaño de miniatura: grande / mediana / pequeña -->
+        <button class="view-btn active" data-view="large" title="Miniatura grande">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg>
+        </button>
+        <button class="view-btn" data-view="medium" title="Miniatura mediana">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="6" height="6" rx="1"/><rect x="9" y="2" width="6" height="6" rx="1"/><rect x="16" y="2" width="6" height="6" rx="1"/><rect x="2" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/><rect x="16" y="9" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="9" y="16" width="6" height="6" rx="1"/><rect x="16" y="16" width="6" height="6" rx="1"/></svg>
+        </button>
+        <button class="view-btn" data-view="small" title="Miniatura pequeña">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="1" width="4" height="4"/><rect x="7" y="1" width="4" height="4"/><rect x="13" y="1" width="4" height="4"/><rect x="19" y="1" width="4" height="4"/><rect x="1" y="7" width="4" height="4"/><rect x="7" y="7" width="4" height="4"/><rect x="13" y="7" width="4" height="4"/><rect x="19" y="7" width="4" height="4"/><rect x="1" y="13" width="4" height="4"/><rect x="7" y="13" width="4" height="4"/><rect x="13" y="13" width="4" height="4"/><rect x="19" y="13" width="4" height="4"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="library-search"><!-- buscador discreto dentro de tu colección -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="librarySearchInput" placeholder="Buscar en tu lista…">
+      </div>
+      <div class="filter-group">
+        <select id="genreFilter">
+          <option value="all">Todos los géneros</option>
+        </select>
+        <svg class="filter-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+    </div>
+
+    <div class="rail" id="rail"></div><!-- índice alfabético A-Z, solo visible con orden "A-Z" -->
+  </div>
+
+  <div id="listArea"></div><!-- aquí se dibuja toda la cuadrícula de tarjetas (función render()) -->
+
+  </div><!-- fin de #collectionView -->
+
+  <div id="statsView" style="display:none;"></div><!-- panel de estadísticas, se llena con renderStats() -->
+
+</div>
+
+<!-- Modal reutilizable: detalle/edición de un anime YA agregado, y también
+     el panel de confirmación (tipo/temporada/calificación) al agregar uno nuevo -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-card">
+    <button class="modal-close" id="modalClose">&times;</button>
+    <div id="modalContent"></div><!-- contenido dinámico: ver renderModalView/renderModalEdit/renderAddPanel -->
+  </div>
+</div>
+
+<!-- Diálogo de confirmación propio (reemplaza confirm()/alert() nativos del navegador) -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-card">
+    <div class="confirm-message" id="confirmMessage"></div>
+    <div class="confirm-actions">
+      <button class="btn-ghost" id="confirmCancelBtn">Cancelar</button>
+      <button class="btn-primary" id="confirmOkBtn">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- IDEA "Vista previa al pasar el mouse": tarjeta flotante con la sinopsis,
+     solo se usa en pantallas con mouse de verdad (no en celular/táctil) -->
+<div class="hover-preview" id="hoverPreview"></div>
+
+<script>
+(function(){
+
+  const STORAGE_KEY = 'lista-anime';
+  let animeList = [];
+  let currentSort = 'alpha';
+  let currentGenre = 'all';
+  let currentWatchStatus = 'todo';
+  let currentView = localStorage.getItem('vista-animeteca') || 'large';
+  let libraryQuery = '';
+  let lastSearchResults = []; // resultados de la última búsqueda; se re-pintan tras agregar, sin re-consultar
+  let loaded = false;
+
+  const el = {
+    input: document.getElementById('searchInput'),
+    searchBtn: document.getElementById('searchBtn'),
+    results: document.getElementById('results'),
+    searchStatus: document.getElementById('searchStatus'),
+    listArea: document.getElementById('listArea'),
+    countNum: document.getElementById('countNum'),
+    mainTitle: document.getElementById('mainTitle'),
+    mainSubtitle: document.getElementById('mainSubtitle'),
+    accentPickerBtn: document.getElementById('accentPickerBtn'),
+    accentPickerSwatch: document.getElementById('accentPickerSwatch'),
+    accentColorInput: document.getElementById('accentColorInput'),
+    hoverPreview: document.getElementById('hoverPreview'),
+    rail: document.getElementById('rail'),
+    sortGroup: document.getElementById('sortGroup'),
+    genreFilter: document.getElementById('genreFilter'),
+    viewGroup: document.getElementById('viewGroup'),
+    librarySearchInput: document.getElementById('librarySearchInput'),
+    exportBtn: document.getElementById('exportBtn'),
+    exportTxtBtn: document.getElementById('exportTxtBtn'),
+    exportPdfBtn: document.getElementById('exportPdfBtn'),
+    importBtn: document.getElementById('importBtn'),
+    importFile: document.getElementById('importFile'),
+    tabSearch: document.getElementById('tabSearch'),
+    tabManual: document.getElementById('tabManual'),
+    searchBox: document.getElementById('searchBox'),
+    manualForm: document.getElementById('manualForm'),
+    manualPreview: document.getElementById('manualPreview'),
+    manualFile: document.getElementById('manualFile'),
+    manualTitle: document.getElementById('manualTitle'),
+    manualImageUrl: document.getElementById('manualImageUrl'),
+    manualGenres: document.getElementById('manualGenres'),
+    manualType: document.getElementById('manualType'),
+    manualYear: document.getElementById('manualYear'),
+    manualEpisodes: document.getElementById('manualEpisodes'),
+    manualSeasonNumber: document.getElementById('manualSeasonNumber'),
+    manualRating: document.getElementById('manualRating'),
+    manualWatchStatus: document.getElementById('manualWatchStatus'),
+    manualSynopsis: document.getElementById('manualSynopsis'),
+    manualCurrentEpisode: document.getElementById('manualCurrentEpisode'),
+    manualNotes: document.getElementById('manualNotes'),
+    manualLinkPrequel: document.getElementById('manualLinkPrequelPicker'),
+    manualLinkSequel: document.getElementById('manualLinkSequelPicker'),
+    manualSubmit: document.getElementById('manualSubmit'),
+    manualCancel: document.getElementById('manualCancel'),
+    modalOverlay: document.getElementById('modalOverlay'),
+    modalContent: document.getElementById('modalContent'),
+    modalClose: document.getElementById('modalClose'),
+    confirmOverlay: document.getElementById('confirmOverlay'),
+    confirmMessage: document.getElementById('confirmMessage'),
+    confirmOkBtn: document.getElementById('confirmOkBtn'),
+    confirmCancelBtn: document.getElementById('confirmCancelBtn'),
+    watchTabs: document.getElementById('watchTabs'),
+    pageTabs: document.getElementById('pageTabs'),
+    collectionView: document.getElementById('collectionView'),
+    statsView: document.getElementById('statsView'),
+  };
+
+  function escapeHtml(str){
+    const d = document.createElement('div');
+    d.textContent = str == null ? '' : String(str);
+    return d.innerHTML;
+  }
+
+  function setStatus(msg, isError){
+    if(!msg){ el.searchStatus.style.display='none'; return; }
+    el.searchStatus.style.display='block';
+    el.searchStatus.textContent = msg;
+    el.searchStatus.className = 'search-status' + (isError ? ' error' : '');
+  }
+
+  // Splits a genre string on comma, semicolon, slash, or a dash surrounded
+  // by spaces — covers the different ways people naturally type multiple genres.
+  function splitGenres(str){
+    return String(str || '')
+      .split(/[,;/]+|\s-\s/)
+      .map(g => g.trim())
+      .filter(Boolean);
+  }
+
+  // ---------- Persistence (localStorage: works standalone, in any browser) ----------
+  async function loadList(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      animeList = raw ? JSON.parse(raw) : [];
+    }catch(e){
+      animeList = [];
+    }
+
+    // Fix older entries whose genres were saved as a single merged string
+    // (e.g. "Acción - Ciencia Ficción - Militar") instead of separate tags.
+    let migrated = false;
+    animeList.forEach(a => {
+      if(Array.isArray(a.genres) && a.genres.length === 1 && /\s-\s|\/|;/.test(a.genres[0])){
+        a.genres = splitGenres(a.genres[0]);
+        migrated = true;
+      }
+      // Los animes agregados antes de "Mis Listas" no tenían estado de visto;
+      // como la app siempre asumió que lo agregado ya se había visto, ese es el default.
+      if(!a.watchStatus){
+        a.watchStatus = 'completado';
+        migrated = true;
+      }
+    });
+    if(migrated) saveList();
+
+    loaded = true;
+    render();
+
+    // Las tres tareas de fondo se encadenan (una espera a que termine la
+    // anterior) en vez de dispararse todas a la vez — así no se satura la
+    // conexión con varias peticiones simultáneas justo cuando abres el archivo,
+    // lo cual podía hacer fallar una búsqueda tuya que coincidiera en el tiempo.
+    (async () => {
+      // Completa tipo/año/episodios para animes agregados antes de que se
+      // capturara ese dato.
+      await backfillMissingDetails();
+
+      // Traduce al español las sinopsis que quedaron en su idioma original.
+      await backfillSynopsisTranslation();
+
+      // IDEA 1: busca la precuela/secuela de los animes agregados antes de que
+      // existiera esta función.
+      await backfillRelations();
+
+      // IDEA "Próximos episodios": refresca la fecha del siguiente capítulo
+      // para lo que esté en emisión (el dato se pone viejo con el tiempo).
+      await backfillNextEpisode();
+    })();
+  }
+
+  const ANILIST_BY_MAL_ID_QUERY = 'query ($id: Int) { Media(idMal: $id, type: ANIME) { format episodes seasonYear status nextAiringEpisode { episode airingAt } } }';
+
+  async function backfillMissingDetails(){
+    const targets = animeList.filter(a => typeof a.id === 'number' && (!a.type || !a.year || !a.episodes));
+    if(targets.length === 0) return;
+    let changed = false;
+    for(const a of targets){
+      try{
+        const resp = await fetchAniListGraphQL(ANILIST_BY_MAL_ID_QUERY, {id: a.id});
+        if(resp.ok){
+          const json = await resp.json();
+          const d = json && json.data && json.data.Media;
+          if(d){
+            if(!a.type && d.format){ a.type = d.format; changed = true; }
+            if(!a.year && d.seasonYear){ a.year = d.seasonYear; changed = true; }
+            if(!a.episodes && d.episodes){ a.episodes = d.episodes; changed = true; }
+            if(!a.status && d.status){ a.status = d.status; changed = true; }
+          }
+        }
+      }catch(e){
+        // Sin conexión o falló esta consulta puntual: seguimos con el resto en silencio.
+      }
+      await sleep(2200); // más lento a propósito: para no volver a activar un bloqueo temporal por exceso de peticiones
+    }
+    if(changed){
+      saveList();
+      render();
+      if(currentModalId){
+        const current = animeList.find(x => x.id === currentModalId);
+        if(current) openModal(current.id);
+      }
+    }
+  }
+
+  async function backfillSynopsisTranslation(){
+    const targets = animeList.filter(a => !isManualId(a.id) && a.synopsis && !a.synopsisEs);
+    if(targets.length === 0) return;
+    let changed = false;
+    for(const a of targets){
+      try{
+        const translated = await translateToSpanish(a.synopsis);
+        if(translated){
+          a.synopsis = translated;
+          a.synopsisEs = true;
+          changed = true;
+        }
+      }catch(e){
+        // Se reintenta la próxima vez que se abra el archivo.
+      }
+      await sleep(1500);
+    }
+    if(changed){
+      saveList();
+      render();
+      if(currentModalId){
+        const current = animeList.find(x => x.id === currentModalId);
+        if(current) openModal(current.id);
+      }
+    }
+  }
+
+  // IDEA 1: para animes agregados antes de que existiera esta función
+  // (relFetched sin definir), busca su precuela/secuela una sola vez y lo
+  // guarda; de ahí en adelante ya no se vuelve a consultar (relFetched=true).
+  async function backfillRelations(){
+    // Máximo por sesión: para colecciones grandes, el resto se completa solo
+    // la próxima vez que abras el archivo — así nunca se manda una ráfaga
+    // enorme de peticiones de una sola vez.
+    const targets = animeList.filter(a => a.relFetched !== true && a.id.indexOf('al-') === 0).slice(0, 4); // lote más chico por sesión, mismo motivo
+    if(targets.length === 0) return;
+    let changed = false;
+    for(const a of targets){
+      try{
+        const anilistId = parseInt(a.id.slice(3), 10);
+        const full = anilistId ? await fetchAniListById(anilistId) : null;
+        const rel = full ? extractRelations(full) : {relPrequel: null, relSequel: null};
+        a.relPrequel = rel.relPrequel;
+        a.relSequel = rel.relSequel;
+        a.relFetched = true;
+        changed = true;
+      }catch(e){
+        // Se reintenta la próxima vez que se abra el archivo.
+      }
+      await sleep(900);
+    }
+    if(changed){
+      saveList();
+      render();
+      if(currentModalId){
+        const current = animeList.find(x => x.id === currentModalId);
+        if(current) openModal(current.id);
+      }
+    }
+  }
+
+  // IDEA "Próximos episodios": para animes en emisión ("releasing"), refresca
+  // el episodio/fecha siguiente si no lo tenemos guardado o si ya se pasó
+  // (indica que el dato quedó viejo y hay que volver a consultarlo).
+  async function backfillNextEpisode(){
+    const targets = animeList
+      .filter(a => a.status === 'RELEASING' && a.id.indexOf('al-') === 0 &&
+        (!a.nextAiringAt || (a.nextAiringAt * 1000) < Date.now()))
+      .slice(0, 8);
+    if(targets.length === 0) return;
+    let changed = false;
+    for(const a of targets){
+      try{
+        const anilistId = parseInt(a.id.slice(3), 10);
+        const full = anilistId ? await fetchAniListById(anilistId) : null;
+        if(full){
+          a.nextEpisode = (full.nextAiringEpisode && full.nextAiringEpisode.episode) || null;
+          a.nextAiringAt = (full.nextAiringEpisode && full.nextAiringEpisode.airingAt) || null;
+          if(full.status) a.status = full.status; // por si ya terminó de emitirse
+          changed = true;
+        }
+      }catch(e){
+        // Se reintenta la próxima vez que se abra el archivo.
+      }
+      await sleep(900);
+    }
+    if(changed){
+      saveList();
+      render();
+      if(currentModalId){
+        const current = animeList.find(x => x.id === currentModalId);
+        if(current) openModal(current.id);
+      }
+    }
+  }
+
+  async function saveList(){
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(animeList));
+    }catch(e){
+      setStatus('No se pudo guardar el cambio en este navegador. Si el almacenamiento está lleno o bloqueado, usa "Exportar respaldo" para no perder tu lista.', true);
+    }
+  }
+
+  // ---------- Search (AniList GraphQL — más permisivo con CORS que Jikan/MAL,
+  // así que funciona mejor al abrir este archivo directamente desde el disco) ----------
+  let searching = false;
+
+  function sleep(ms){ return new Promise(res => setTimeout(res, ms)); }
+
+  // Todas las llamadas a AniList pasan por aquí. Si la conexión directa falla
+  // a nivel de red (típico de un antivirus, red corporativa, DNS filtrado o
+  // una extensión del navegador bloqueando ese dominio en particular — no es
+  // lo mismo que "sin internet"), reintenta una vez a través de un proxy
+  // público que suele esquivar ese tipo de bloqueos puntuales.
+  async function fetchAniListGraphQL(query, variables){
+    const body = JSON.stringify({query, variables});
+    const headers = {'Content-Type':'application/json', 'Accept':'application/json'};
+    const routes = [
+      () => fetch('https://graphql.anilist.co', {method:'POST', headers, body}),
+      () => fetch('https://corsproxy.io/?url=' + encodeURIComponent('https://graphql.anilist.co'), {method:'POST', headers, body}),
+      () => fetch('https://proxy.cors.sh/https://graphql.anilist.co', {method:'POST', headers, body})
+    ];
+    let lastErr;
+    for(const attempt of routes){
+      try{
+        return await attempt();
+      }catch(e){
+        lastErr = e; // se prueba la siguiente ruta
+      }
+    }
+    // Ninguna de las tres rutas funcionó: si de verdad no hay internet, esto es
+    // lo que se ve; si sí hay, algo local está bloqueando las tres (antivirus,
+    // firewall muy estricto, o un bloqueo temporal del propio servicio).
+    throw lastErr;
+  }
+
+  function stripHtml(str){
+    if(!str) return '';
+    const div = document.createElement('div');
+    div.innerHTML = str;
+    return (div.textContent || div.innerText || '').trim();
+  }
+
+  // Traduce texto al español usando el endpoint público de Google Translate
+  // (sin necesidad de API key). Si falla, quien llame debe capturar el error
+  // y quedarse con el texto original.
+  async function translateToSpanish(text){
+    if(!text) return text;
+    const resp = await fetch(
+      'https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=es&dt=t&q=' + encodeURIComponent(text)
+    );
+    if(!resp.ok) throw new Error('translate-http-' + resp.status);
+    const data = await resp.json();
+    if(!Array.isArray(data) || !Array.isArray(data[0])) throw new Error('translate-bad-response');
+    return data[0].map(segment => segment[0]).join('');
+  }
+
+  function isManualId(id){
+    return typeof id === 'string' && id.indexOf('m-') === 0;
+  }
+
+  const RELATIONS_FIELDS = 'relations { edges { relationType node { id type title { romaji english } coverImage { large } } } }';
+  const ANILIST_QUERY = 'query ($search: String) { Page(perPage: 8) { media(search: $search, type: ANIME, sort: SEARCH_MATCH) { id title { romaji english native } coverImage { large } description(asHtml: false) seasonYear episodes format status genres nextAiringEpisode { episode airingAt } ' + RELATIONS_FIELDS + ' } } }';
+
+  async function fetchAniList(q, attempt){
+    const resp = await fetchAniListGraphQL(ANILIST_QUERY, {search: q});
+    if(resp.status === 429){
+      if(attempt < 2){
+        await sleep(1500 * (attempt + 1));
+        return fetchAniList(q, attempt + 1);
+      }
+      throw new Error('rate-limit');
+    }
+    if(!resp.ok){
+      if(attempt < 1){
+        await sleep(800);
+        return fetchAniList(q, attempt + 1);
+      }
+      throw new Error('http-' + resp.status);
+    }
+    const json = await resp.json();
+    if(json.errors && json.errors.length){
+      throw new Error('api-error');
+    }
+    return (json.data && json.data.Page && json.data.Page.media) || [];
+  }
+
+  // IDEA 1: saca la precuela/secuela directa (si existen) de la respuesta de
+  // AniList. Solo se queda con la primera relación de tipo anime de cada lado.
+  function extractRelations(media){
+    const edges = (media.relations && media.relations.edges) || [];
+    function pick(relationType){
+      const edge = edges.find(e => e.relationType === relationType && e.node && e.node.type === 'ANIME');
+      if(!edge) return null;
+      const n = edge.node;
+      return {
+        id: n.id,
+        title: (n.title && (n.title.romaji || n.title.english)) || 'Sin título',
+        image: (n.coverImage && n.coverImage.large) || ''
+      };
+    }
+    return {relPrequel: pick('PREQUEL'), relSequel: pick('SEQUEL')};
+  }
+
+  // Trae los datos completos de un anime por su ID de AniList (se usa al hacer
+  // clic en una precuela/secuela que todavía no está en la colección).
+  const ANILIST_BY_ID_QUERY = 'query ($id: Int) { Media(id: $id, type: ANIME) { id title { romaji english native } coverImage { large } description(asHtml: false) seasonYear episodes format status genres nextAiringEpisode { episode airingAt } ' + RELATIONS_FIELDS + ' } }';
+  async function fetchAniListById(anilistId){
+    try{
+      const resp = await fetchAniListGraphQL(ANILIST_BY_ID_QUERY, {id: anilistId});
+      if(!resp.ok) return null;
+      const json = await resp.json();
+      return (json.data && json.data.Media) || null;
+    }catch(e){
+      return null;
+    }
+  }
+
+  async function doSearch(){
+    const q = el.input.value.trim();
+    if(!q || searching) return;
+    if(q.length < 3){
+      setStatus('Escribe al menos 3 letras para buscar.', false);
+      return;
+    }
+    searching = true;
+    el.searchBtn.disabled = true;
+    el.results.innerHTML = '';
+    setStatus('Buscando "' + q + '"…', false);
+
+    try{
+      const media = await fetchAniList(q, 0);
+      if(media.length === 0){
+        setStatus('Sin resultados para "' + q + '". Prueba con otro título.', false);
+      } else {
+        setStatus('', false);
+        lastSearchResults = media;
+        renderResults(media);
+      }
+    }catch(e){
+      let msg = 'No se pudo buscar en este momento. Inténtalo de nuevo en unos segundos.';
+      if(e && e.message === 'rate-limit'){
+        msg = 'Se hicieron demasiadas búsquedas seguidas. Espera unos 15-20 segundos y vuelve a intentar.';
+      } else if(e instanceof TypeError){
+        msg = 'No se pudo conectar por ninguna de las 3 rutas posibles (ya se intentaron todas). Puede que tu antivirus, red o alguna extensión esté bloqueando esto específicamente, o que el servicio esté temporalmente inaccesible desde tu conexión. Prueba de nuevo en un rato, o desde otra red — mientras tanto, usa "Agregar manualmente".';
+      }
+      setStatus(msg, true);
+    }finally{
+      searching = false;
+      el.searchBtn.disabled = false;
+    }
+  }
+
+  function renderResults(mediaList){
+    el.results.innerHTML = '';
+    mediaList.forEach(m => {
+      const title = (m.title && (m.title.romaji || m.title.english)) || 'Sin título';
+      const img = (m.coverImage && m.coverImage.large) || '';
+      const year = m.seasonYear || '—';
+      const eps = m.episodes || '?';
+      const alreadyAdded = animeList.some(a => a.id === 'al-' + m.id);
+      const card = document.createElement('div');
+      card.className = 'result-card' + (alreadyAdded ? ' already-added' : '');
+      card.innerHTML =
+        '<img src="' + escapeHtml(img) + '" alt="">' +
+        '<div>' +
+          '<div class="r-title">' + escapeHtml(title) + '</div>' +
+          '<div class="r-meta">' + escapeHtml(year) + ' · ' + escapeHtml(eps) + ' eps</div>' +
+          (alreadyAdded
+            ? '<div class="r-add r-add-done">✓ Ya en tu animeteca</div>'
+            : '<div class="r-add">+ Añadir a la animeteca</div>') +
+        '</div>';
+      card.addEventListener('click', () => openAddPanel(m));
+      el.results.appendChild(card);
+    });
+  }
+
+  // ---------- Panel de confirmación al agregar (tipo, temporada y calificación) ----------
+  function openAddPanel(m){
+    const id = 'al-' + m.id;
+    if(animeList.some(a => a.id === id)){
+      setStatus('Ese título ya está en tu animeteca.', false);
+      return;
+    }
+    currentModalId = null;
+    modalEditing = false;
+    m._selectedRating = null;
+    setModalHeroImage((m.coverImage && m.coverImage.large) || null);
+
+    renderAddPanel(m, null); // null = sinopsis aún traduciéndose
+    el.modalOverlay.classList.add('open');
+
+    const raw = stripHtml(m.description);
+    if(raw){
+      translateToSpanish(raw)
+        .then(t => { m._translatedSynopsis = t; m._synopsisEs = true; renderAddPanel(m, t); })
+        .catch(() => { m._translatedSynopsis = raw; m._synopsisEs = false; renderAddPanel(m, raw); });
+    } else {
+      m._translatedSynopsis = 'Sin sinopsis disponible.';
+      m._synopsisEs = false;
+    }
+  }
+
+  function renderAddPanel(m, synopsisText){
+    const title = (m.title && (m.title.romaji || m.title.english)) || 'Sin título';
+    const img = (m.coverImage && m.coverImage.large) || '';
+    const typeGuess = translateType(m.format) || '';
+    const genrePills = (m.genres && m.genres.length)
+      ? m.genres.map(g => '<span class="genre-pill">' + escapeHtml(g) + '</span>').join('')
+      : '<span class="genre-pill">Sin género</span>';
+    const synDisplay = synopsisText === null ? 'Traduciendo sinopsis…' : (synopsisText || 'Sin sinopsis disponible.');
+    const altTitles = [m.title && m.title.native, m.title && m.title.english]
+      .filter(t => t && t !== title);
+    const altTitlesHtml = altTitles.length
+      ? '<div class="modal-alt-titles">' + altTitles.map(t => escapeHtml(t)).join(' · ') + '</div>'
+      : '';
+    const seasonGuess = guessSeasonNumberFromSources([
+      m.title && m.title.romaji,
+      m.title && m.title.english,
+      stripHtml(m.description), // sinopsis original (inglés/japonés), disponible de inmediato
+      synopsisText               // sinopsis ya traducida al español, si ya terminó de traducirse
+    ]) || '';
+
+    // Si ya elegiste algo a mano (tipo/temporada/estado), se respeta esa
+    // elección aunque el panel se vuelva a pintar cuando termine de traducirse
+    // la sinopsis — solo se usa la sugerencia automática mientras no la toques.
+    const typeSelected = m._userType !== undefined ? m._userType : typeGuess;
+    const seasonSelected = m._userSeasonNumber !== undefined ? m._userSeasonNumber : seasonGuess;
+    const watchStatusSelected = m._userWatchStatus !== undefined ? m._userWatchStatus : 'completado';
+
+    el.modalContent.innerHTML =
+      '<div class="modal-body">' +
+        '<img class="modal-poster" src="' + escapeHtml(img) + '" alt="">' +
+        '<div>' +
+          '<div class="modal-title">' + escapeHtml(title) + '</div>' +
+          altTitlesHtml +
+          '<div class="modal-genres">' + genrePills + '</div>' +
+          '<div class="modal-synopsis">' + escapeHtml(synDisplay) + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="field-sections">' +
+        '<div class="field-section">' +
+          '<div class="field-section-title">📺 Detalles</div>' +
+          '<div class="manual-two-col">' +
+            '<div class="modal-edit-field">' +
+              '<label>Tipo</label>' +
+              '<select id="addType">' + typeOptionsHtml(typeSelected) + '</select>' +
+            '</div>' +
+            '<div class="modal-edit-field">' +
+              '<label>Temporada' + (seasonGuess ? ' <span class="auto-guess-tag">sugerida</span>' : '') + '</label>' +
+              '<select id="addSeasonNumber">' + seasonOptionsHtml(seasonSelected) + '</select>' +
+            '</div>' +
+          '</div>' +
+          '<div class="manual-two-col">' +
+            '<div class="modal-edit-field">' +
+              '<label>Estado</label>' +
+              '<select id="addWatchStatus">' + watchStatusOptionsHtml(watchStatusSelected) + '</select>' +
+            '</div>' +
+            '<div class="modal-edit-field">' +
+              '<label>Episodio actual (opcional)</label>' +
+              '<input type="text" inputmode="numeric" id="addCurrentEpisode" value="' + escapeHtml(m._userCurrentEpisode || '') + '" placeholder="ej. 8">' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="field-section">' +
+          '<div class="field-section-title">🔗 Precuela y secuela</div>' +
+          '<div class="manual-two-col">' +
+            '<div class="modal-edit-field">' +
+              '<label>Precuela (vínculo manual)</label>' +
+              '<div id="addManualPrequelPicker"></div>' +
+            '</div>' +
+            '<div class="modal-edit-field">' +
+              '<label>Secuela (vínculo manual)</label>' +
+              '<div id="addManualSequelPicker"></div>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="field-section">' +
+          '<div class="field-section-title">📝 Notas personales</div>' +
+          '<div class="modal-edit-field">' +
+            '<textarea id="addNotes" placeholder="Tus propios comentarios (aparte de la sinopsis)...">' + escapeHtml(m._userNotes || '') + '</textarea>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="modal-foot" style="flex-direction:column;align-items:stretch;">' +
+        '<div>' +
+          '<label style="display:block;font-family:\'IBM Plex Mono\',monospace;font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:8px;">⭐ Calificación</label>' +
+          '<div class="rate-picker" id="addRatingPicker"></div>' +
+        '</div>' +
+        '<div class="modal-actions" style="justify-content:flex-end;margin-top:16px;">' +
+          '<button class="btn-ghost" id="addCancelBtn">Cancelar</button>' +
+          '<button class="btn-primary" id="addConfirmBtn">Agregar a mi animeteca</button>' +
+        '</div>' +
+      '</div>';
+
+    const pickerEl = document.getElementById('addRatingPicker');
+    function paintPicker(){
+      pickerEl.innerHTML = '';
+      pickerEl.appendChild(buildRatingPickerGrid(m._selectedRating, (val) => { m._selectedRating = val; paintPicker(); }));
+    }
+    paintPicker();
+
+    document.getElementById('addManualPrequelPicker').outerHTML = buildLinkPickerHtml('addManualPrequelPicker', null, m._userManualPrequel || null);
+    document.getElementById('addManualSequelPicker').outerHTML = buildLinkPickerHtml('addManualSequelPicker', null, m._userManualSequel || null);
+    wireLinkPicker('addManualPrequelPicker', (val) => { m._userManualPrequel = val; });
+    wireLinkPicker('addManualSequelPicker', (val) => { m._userManualSequel = val; });
+
+    const typeSelect = document.getElementById('addType');
+    const seasonSelect = document.getElementById('addSeasonNumber');
+    const watchStatusSelect = document.getElementById('addWatchStatus');
+    typeSelect.addEventListener('change', () => { m._userType = typeSelect.value; });
+    seasonSelect.addEventListener('change', () => { m._userSeasonNumber = seasonSelect.value; });
+    watchStatusSelect.addEventListener('change', () => { m._userWatchStatus = watchStatusSelect.value; });
+    const currentEpisodeInput = document.getElementById('addCurrentEpisode');
+    const notesInput = document.getElementById('addNotes');
+    currentEpisodeInput.addEventListener('input', () => { m._userCurrentEpisode = currentEpisodeInput.value; });
+    notesInput.addEventListener('input', () => { m._userNotes = notesInput.value; });
+
+    document.getElementById('addCancelBtn').addEventListener('click', closeModal);
+    document.getElementById('addConfirmBtn').addEventListener('click', () => {
+      const type = typeSelect.value || null;
+      const seasonNumber = seasonSelect.value ? parseInt(seasonSelect.value, 10) : null;
+      const watchStatus = watchStatusSelect.value || 'completado';
+      const manualPrequelId = getLinkPickerValue('addManualPrequelPicker');
+      const manualSequelId = getLinkPickerValue('addManualSequelPicker');
+      const currentEpisode = currentEpisodeInput.value.trim() ? parseInt(currentEpisodeInput.value, 10) : null;
+      const notes = notesInput.value.trim();
+      finalizeAddAnime(m, type, seasonNumber, watchStatus, manualPrequelId, manualSequelId, currentEpisode, notes);
+    });
+  }
+
+  function finalizeAddAnime(m, type, seasonNumber, watchStatus, manualPrequelId, manualSequelId, currentEpisode, notes){
+    const id = 'al-' + m.id;
+    if(animeList.some(a => a.id === id)){
+      setStatus('Ese título ya está en tu animeteca.', false);
+      closeModal();
+      return;
+    }
+    const title = (m.title && (m.title.romaji || m.title.english)) || 'Sin título';
+    const finalSynopsis = (m._translatedSynopsis !== undefined)
+      ? m._translatedSynopsis
+      : (stripHtml(m.description) || 'Sin sinopsis disponible.');
+    const rel = extractRelations(m);
+
+    animeList.push({
+      id: id,
+      title: title,
+      titleNative: (m.title && m.title.native) || null,
+      titleEnglish: (m.title && m.title.english) || null,
+      image: (m.coverImage && m.coverImage.large) || '',
+      synopsis: finalSynopsis,
+      synopsisEs: m._synopsisEs || false,
+      year: m.seasonYear || null,
+      episodes: m.episodes || null,
+      type: type,
+      status: m.status || null,
+      seasonNumber: seasonNumber,
+      genres: Array.isArray(m.genres) ? m.genres.slice() : [],
+      rating: m._selectedRating || null,
+      watchStatus: watchStatus || 'completado',
+      relPrequel: rel.relPrequel,
+      relSequel: rel.relSequel,
+      relFetched: true,
+      manualPrequelId: null,
+      manualSequelId: null,
+      currentEpisode: currentEpisode || null, // IDEA "Progreso de episodios"
+      notes: notes || '', // IDEA "Notas personales"
+      nextEpisode: (m.nextAiringEpisode && m.nextAiringEpisode.episode) || null, // IDEA "Próximos episodios"
+      nextAiringAt: (m.nextAiringEpisode && m.nextAiringEpisode.airingAt) || null,
+      addedAt: Date.now()
+    });
+
+    // Se aplican los vínculos manuales ahora que el anime ya tiene su lugar
+    // (y su id) dentro de la colección — setManualLink se encarga de dejarlo
+    // vinculado en ambos sentidos.
+    if(manualPrequelId) setManualLink(id, 'prequel', manualPrequelId);
+    if(manualSequelId) setManualLink(id, 'sequel', manualSequelId);
+
+    // No se limpia la búsqueda: si el anime tiene varias temporadas, así puedes
+    // seguir agregando los siguientes resultados sin tener que volver a buscar.
+    saveList();
+    render();
+    closeModal();
+    if(lastSearchResults.length) renderResults(lastSearchResults); // refresca el check "ya en tu animeteca"
+    setStatus('"' + title + '" añadido a tu animeteca. Puedes seguir agregando desde estos mismos resultados.', false);
+  }
+
+  function removeAnime(id){
+    animeList = animeList.filter(a => a.id !== id);
+    saveList();
+    render();
+  }
+
+  function setRating(id, value){
+    const a = animeList.find(a => a.id === id);
+    if(a){ a.rating = value; saveList(); render(); if(currentModalId === id) openModal(id); }
+  }
+
+  // ---------- Estado de visto ("Mis Listas": Viendo / Por Ver / Completado / Pausado / Descartado) ----------
+  const WATCH_STATUSES = [
+    {value:'viendo', label:'Viendo'},
+    {value:'por-ver', label:'Por Ver'},
+    {value:'completado', label:'Completado'},
+    {value:'pausado', label:'Pausado'},
+    {value:'descartado', label:'Descartado'}
+  ];
+  function watchStatusLabel(v){
+    const found = WATCH_STATUSES.find(w => w.value === v);
+    return found ? found.label : 'Completado';
+  }
+  function watchStatusOptionsHtml(selected){
+    return WATCH_STATUSES.map(w =>
+      '<option value="' + w.value + '"' + (selected === w.value ? ' selected' : '') + '>' + w.label + '</option>'
+    ).join('');
+  }
+
+  // ---------- Sistema de calificación (enteros, medios puntos, y una marca
+  // especial para lo que está "por encima de un 10") ----------
+  const RATING_OPTIONS = [1,1.5,2,2.5,3,3.5,4,4.5,5,5.5,6,6.5,7,7.5,8,8.5,9,9.5,10,11];
+  const RATING_SPECIAL = 11; // "más de un 10" — obra maestra
+  const RATING_SPECIAL_MARK = '✦';
+
+  function ratingLabel(v){
+    return v === RATING_SPECIAL ? RATING_SPECIAL_MARK : String(v);
+  }
+
+  function ratingOptionsHtml(selected){
+    let html = '<option value="">Sin calificar</option>';
+    RATING_OPTIONS.forEach(v => {
+      const label = v === RATING_SPECIAL ? RATING_SPECIAL_MARK + ' Obra maestra (más de un 10)' : String(v);
+      html += '<option value="' + v + '"' + (String(selected) === String(v) ? ' selected' : '') + '>' + label + '</option>';
+    });
+    return html;
+  }
+
+  function buildRatingPickerGrid(currentValue, onSelect){
+    const grid = document.createElement('div');
+    grid.className = 'rate-picker';
+    RATING_OPTIONS.forEach(v => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = ratingLabel(v);
+      if(v === RATING_SPECIAL) b.classList.add('special-option');
+      if(currentValue === v) b.classList.add('selected');
+      b.addEventListener('click', () => onSelect(v));
+      grid.appendChild(b);
+    });
+    return grid;
+  }
+
+  const STAR_ICON_SVG = '<svg class="star-icon" viewBox="0 0 24 24"><path d="M12 2.5l2.95 6.28 6.8.75-5.03 4.76 1.35 6.71L12 17.6l-6.07 3.4 1.35-6.71L2.25 9.53l6.8-.75L12 2.5z"/></svg>';
+
+  function renderStamp(holder, a){
+    holder.innerHTML = '';
+    const hasRating = a.rating !== null && a.rating !== undefined;
+    const stamp = document.createElement('div');
+    stamp.className = 'stamp' + (hasRating ? '' : ' empty') + (a.rating === RATING_SPECIAL ? ' special' : '');
+    const numText = hasRating ? (a.rating === RATING_SPECIAL ? RATING_SPECIAL_MARK : a.rating) : 'Calificar';
+    stamp.innerHTML = STAR_ICON_SVG + '<span class="num">' + numText + '</span>';
+    stamp.addEventListener('click', () => {
+      holder.innerHTML = '';
+      holder.appendChild(buildRatingPickerGrid(a.rating, (v) => setRating(a.id, v)));
+    });
+    holder.appendChild(stamp);
+  }
+
+  // ---------- Label translation helpers ----------
+  function translateType(t){
+    const map = {
+      TV:'TV Anime', Movie:'Película', OVA:'OVA', ONA:'ONA', Special:'Especial', Music:'Música',
+      MOVIE:'Película', SPECIAL:'Especial', MUSIC:'Música', TV_SHORT:'TV Anime'
+    };
+    return t ? (map[t] || t) : null;
+  }
+  function translateStatus(s){
+    const map = {
+      'Finished Airing':'Finalizado','Currently Airing':'En emisión','Not yet aired':'Próximamente',
+      FINISHED:'Finalizado', RELEASING:'En emisión', NOT_YET_RELEASED:'Próximamente', CANCELLED:'Cancelado', HIATUS:'En pausa'
+    };
+    return s ? (map[s] || s) : null;
+  }
+  const SEASON_ORDINALS = ['Primera','Segunda','Tercera','Cuarta','Quinta','Sexta','Séptima','Octava','Novena','Décima'];
+  function seasonOrdinalLabel(n){
+    const i = parseInt(n, 10);
+    return (i >= 1 && i <= SEASON_ORDINALS.length) ? SEASON_ORDINALS[i-1] + ' Temporada' : null;
+  }
+  // IDEA "Próximos episodios": convierte el timestamp de AniList (segundos) en
+  // un texto relativo tipo "en 3 días". Si ya pasó, devuelve null (se ve
+  // desactualizado hasta que el respaldo automático lo vuelva a consultar).
+  function formatRelativeFuture(unixSeconds){
+    if(!unixSeconds) return null;
+    const diffMs = (unixSeconds * 1000) - Date.now();
+    if(diffMs <= 0) return null;
+    const days = Math.floor(diffMs / 86400000);
+    const hours = Math.floor((diffMs % 86400000) / 3600000);
+    if(days >= 1) return 'en ' + days + (days === 1 ? ' día' : ' días');
+    if(hours >= 1) return 'en ' + hours + (hours === 1 ? ' hora' : ' horas');
+    return 'muy pronto';
+  }
+  function seasonOptionsHtml(selected){
+    let html = '<option value="">Sin especificar</option>';
+    SEASON_ORDINALS.forEach((label, idx) => {
+      const val = idx + 1;
+      html += '<option value="' + val + '"' + (String(selected) === String(val) ? ' selected' : '') + '>' + label + '</option>';
+    });
+    return html;
+  }
+
+  // Intenta adivinar qué número de temporada es a partir del propio título
+  // (ej. "2nd Season", "3rd Stage", "Part 2", "第2期"). Es solo una sugerencia
+  // que precarga el desplegable — el campo sigue siendo 100% editable a mano.
+  const SEASON_WORD_TO_NUM = {
+    '1st':1, 'first':1, 'primera':1,
+    '2nd':2, 'second':2, 'segunda':2,
+    '3rd':3, 'third':3, 'tercera':3,
+    '4th':4, 'fourth':4, 'cuarta':4,
+    '5th':5, 'fifth':5, 'quinta':5,
+    '6th':6, 'sixth':6, 'sexta':6,
+    '7th':7, 'seventh':7, 'septima':7,
+    '8th':8, 'eighth':8, 'octava':8,
+    '9th':9, 'ninth':9, 'novena':9,
+    '10th':10, 'tenth':10, 'decima':10
+  };
+  // Busca pistas de número de temporada en cualquier texto (título o sinopsis,
+  // en inglés, español o japonés): "2nd Season", "Segunda Temporada",
+  // "Temporada 3", "2da Temporada", "Parte 2", "第2期", etc.
+  function guessSeasonNumber(text){
+    if(!text) return null;
+    const norm = text.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // sin tildes
+    let m = norm.match(/\b(1st|first|primera|2nd|second|segunda|3rd|third|tercera|4th|fourth|cuarta|5th|fifth|quinta|6th|sixth|sexta|7th|seventh|septima|8th|eighth|octava|9th|ninth|novena|10th|tenth|decima)\s+(season|stage|cour|part|temporada|parte)\b/i);
+    if(m) return SEASON_WORD_TO_NUM[m[1].toLowerCase()] || null;
+    m = norm.match(/\b(?:season|part|cour|temporada|parte)\s+(\d{1,2})\b/i);
+    if(m) return parseInt(m[1], 10);
+    m = norm.match(/\b(\d{1,2})\s*(?:da|do|ra|to|va|nd|rd|th|st)?\.?\s*temporada\b/i);
+    if(m) return parseInt(m[1], 10);
+    m = text.match(/第\s*(\d{1,2})\s*期/); // caracteres japoneses: se busca en el texto original, no en el normalizado
+    if(m) return parseInt(m[1], 10);
+    return null;
+  }
+  // Prueba varias fuentes de texto en orden y devuelve el primer número de
+  // temporada que se logre adivinar (o null si ninguna da una pista clara).
+  function guessSeasonNumberFromSources(sources){
+    for(const text of sources){
+      const guess = guessSeasonNumber(text);
+      if(guess) return guess;
+    }
+    return null;
+  }
+
+  // IDEA 1 (ampliación): "título base" sin las marcas de temporada, para poder
+  // comparar "Nombre 2nd Season" con "Nombre" o "Nombre 3rd Season" y saber
+  // que son el mismo franquicia. Se usa para encontrar precuela/secuela DENTRO
+  // de tu propia colección cuando AniList no trae esa relación (típicamente
+  // porque el anime se agregó manualmente).
+  function normalizeTitleForMatch(title){
+    if(!title) return '';
+    let t = title.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // sin tildes
+    t = t.replace(/\b(1st|first|primera|2nd|second|segunda|3rd|third|tercera|4th|fourth|cuarta|5th|fifth|quinta|6th|sixth|sexta|7th|seventh|septima|8th|eighth|octava|9th|ninth|novena|10th|tenth|decima)\s+(season|stage|cour|part|temporada|parte)\b/gi, ' ');
+    t = t.replace(/\b(?:season|part|cour|temporada|parte)\s+\d{1,2}\b/gi, ' ');
+    t = t.replace(/\b\d{1,2}\s*(?:da|do|ra|to|va)?\.?\s*temporada\b/gi, ' ');
+    t = t.replace(/第\s*\d{1,2}\s*期/g, ' ');
+    // Patrón muy común en secuelas: solo un número o numeral romano suelto al
+    // final del título, sin "Season"/"Temporada" (ej. "Real Girl 2", "Overlord IV").
+    t = t.replace(/[:\-–—]?\s*\b(\d{1,2}|ii|iii|iv|vi|vii|viii|ix|x)\s*$/i, '');
+    t = t.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    return t;
+  }
+
+  // Busca, dentro de la colección actual, un anime con el mismo título base y
+  // el número de temporada inmediato anterior (direction=-1) o siguiente (+1).
+  function findLocalRelation(anime, direction){
+    if(!anime.seasonNumber) return null;
+    const targetSeason = anime.seasonNumber + direction;
+    if(targetSeason < 1) return null;
+    const base = normalizeTitleForMatch(anime.title);
+    if(!base) return null;
+    const match = animeList.find(x =>
+      x.id !== anime.id &&
+      x.seasonNumber === targetSeason &&
+      normalizeTitleForMatch(x.title) === base
+    );
+    return match ? {id: match.id, title: match.title, image: match.image, isLocal: true} : null;
+  }
+
+  // Combina la relación de AniList (si existe) con la búsqueda local como
+  // respaldo — así funciona también con animes agregados a mano.
+  // Vincula (o desvincula) manualmente precuela/secuela entre dos animes de tu
+  // colección. Es bidireccional: si dices que B es la secuela de A, A queda
+  // marcado como precuela de B automáticamente.
+  function setManualLink(animeId, linkType, targetId){
+    const a = animeList.find(x => x.id === animeId);
+    if(!a) return;
+    const ownField = linkType === 'prequel' ? 'manualPrequelId' : 'manualSequelId';
+    const otherFieldOnTarget = linkType === 'prequel' ? 'manualSequelId' : 'manualPrequelId';
+
+    // si había un vínculo anterior distinto, se limpia el lado opuesto en aquel anime
+    const prevTargetId = a[ownField];
+    if(prevTargetId && prevTargetId !== targetId){
+      const prevTarget = animeList.find(x => x.id === prevTargetId);
+      if(prevTarget && prevTarget[otherFieldOnTarget] === a.id){
+        prevTarget[otherFieldOnTarget] = null;
+      }
+    }
+
+    a[ownField] = targetId || null;
+
+    if(targetId){
+      const target = animeList.find(x => x.id === targetId);
+      if(target) target[otherFieldOnTarget] = a.id;
+    }
+  }
+
+  // Menú de "elige un anime de tu colección" reutilizado en los tres lugares
+  // donde se puede vincular manualmente (agregar manual, panel de búsqueda, editar).
+  // Selector visual de precuela/secuela: un "trigger" que muestra la elección
+  // actual (carátula + título) y, al hacer clic, despliega un panel con las
+  // carátulas de toda tu colección (con buscador) para elegir de un vistazo.
+  function buildLinkPickerHtml(pickerId, excludeId, selectedId){
+    const selected = selectedId ? animeList.find(x => x.id === selectedId) : null;
+    const triggerInner = selected
+      ? '<img src="' + escapeHtml(selected.image) + '" alt="">' +
+        '<span class="link-picker-title">' + escapeHtml(selected.title) + '</span>' +
+        '<button type="button" class="link-picker-clear" data-role="clear" title="Quitar vínculo">✕</button>'
+      : '<span class="link-picker-placeholder">Automático (detectar solo) — toca para elegir</span>';
+
+    return (
+      '<div class="link-picker" id="' + pickerId + '" data-selected-id="' + escapeHtml(selectedId || '') + '" data-exclude-id="' + escapeHtml(excludeId || '') + '">' +
+        '<div class="link-picker-trigger" data-role="trigger">' + triggerInner + '</div>' +
+        '<div class="link-picker-panel">' +
+          '<input type="text" class="link-picker-search" placeholder="Buscar en tu colección...">' +
+          '<div class="link-picker-grid" data-role="grid"></div>' +
+        '</div>' +
+      '</div>'
+    );
+  }
+
+  function linkPickerTileHtml(x){
+    return '<div class="link-picker-tile" data-id="' + escapeHtml(x.id) + '">' +
+      '<img src="' + escapeHtml(x.image) + '" alt="">' +
+      '<span>' + escapeHtml(x.title) + '</span>' +
+    '</div>';
+  }
+
+  function renderLinkPickerGrid(pickerEl, filterText){
+    const grid = pickerEl.querySelector('[data-role="grid"]');
+    const excludeId = pickerEl.dataset.excludeId;
+    const q = (filterText || '').trim().toLowerCase();
+    const items = animeList
+      .filter(x => x.id !== excludeId && (!q || x.title.toLowerCase().includes(q)))
+      .sort((x, y) => x.title.localeCompare(y.title, 'es', {sensitivity:'base'}));
+    grid.innerHTML = items.length
+      ? items.map(linkPickerTileHtml).join('')
+      : '<div class="link-picker-empty">Sin resultados</div>';
+  }
+
+  // Conecta el comportamiento (abrir/cerrar, buscar, elegir, quitar) de un
+  // selector visual ya insertado en el DOM. Se llama una vez por cada picker,
+  // justo después de meterlo en el HTML.
+  function wireLinkPicker(pickerId, onSelect){
+    const pickerEl = document.getElementById(pickerId);
+    if(!pickerEl) return;
+    const trigger = pickerEl.querySelector('[data-role="trigger"]');
+    const search = pickerEl.querySelector('.link-picker-search');
+    let gridLoaded = false;
+
+    function updateTrigger(){
+      const selectedId = pickerEl.dataset.selectedId;
+      const selected = selectedId ? animeList.find(x => x.id === selectedId) : null;
+      trigger.innerHTML = selected
+        ? '<img src="' + escapeHtml(selected.image) + '" alt="">' +
+          '<span class="link-picker-title">' + escapeHtml(selected.title) + '</span>' +
+          '<button type="button" class="link-picker-clear" data-role="clear" title="Quitar vínculo">✕</button>'
+        : '<span class="link-picker-placeholder">Automático (detectar solo) — toca para elegir</span>';
+    }
+
+    trigger.addEventListener('click', (e) => {
+      if(e.target.closest('[data-role="clear"]')){
+        e.stopPropagation();
+        pickerEl.dataset.selectedId = '';
+        updateTrigger();
+        if(onSelect) onSelect(null);
+        return;
+      }
+      const isOpen = pickerEl.classList.contains('open');
+      // cierra cualquier otro picker que estuviera abierto
+      document.querySelectorAll('.link-picker.open').forEach(p => { if(p !== pickerEl) p.classList.remove('open'); });
+      pickerEl.classList.toggle('open', !isOpen);
+      if(!isOpen){
+        if(!gridLoaded){ renderLinkPickerGrid(pickerEl, ''); gridLoaded = true; }
+        search.value = '';
+        search.focus();
+      }
+    });
+
+    search.addEventListener('input', () => renderLinkPickerGrid(pickerEl, search.value));
+    search.addEventListener('click', e => e.stopPropagation());
+
+    pickerEl.querySelector('[data-role="grid"]').addEventListener('click', (e) => {
+      const tile = e.target.closest('.link-picker-tile');
+      if(!tile) return;
+      pickerEl.dataset.selectedId = tile.dataset.id;
+      updateTrigger();
+      pickerEl.classList.remove('open');
+      if(onSelect) onSelect(tile.dataset.id);
+    });
+
+    document.addEventListener('click', (e) => {
+      if(!pickerEl.contains(e.target)) pickerEl.classList.remove('open');
+    });
+  }
+
+  function getLinkPickerValue(pickerId){
+    const el = document.getElementById(pickerId);
+    return el ? (el.dataset.selectedId || null) : null;
+  }
+
+  function resolveRelated(a){
+    // El vínculo manual siempre tiene prioridad sobre lo automático.
+    const manualPrequel = a.manualPrequelId ? animeList.find(x => x.id === a.manualPrequelId) : null;
+    const manualSequel = a.manualSequelId ? animeList.find(x => x.id === a.manualSequelId) : null;
+
+    const prequel = manualPrequel
+      ? {id: manualPrequel.id, title: manualPrequel.title, image: manualPrequel.image, isLocal: true}
+      : (a.relPrequel
+          ? {id: a.relPrequel.id, title: a.relPrequel.title, image: a.relPrequel.image, isLocal: false}
+          : findLocalRelation(a, -1));
+    const sequel = manualSequel
+      ? {id: manualSequel.id, title: manualSequel.title, image: manualSequel.image, isLocal: true}
+      : (a.relSequel
+          ? {id: a.relSequel.id, title: a.relSequel.title, image: a.relSequel.image, isLocal: false}
+          : findLocalRelation(a, 1));
+    return {prequel, sequel};
+  }
+  function typeOptionsHtml(selected){
+    const options = ['TV Anime','OVA','Especial','Película','ONA'];
+    let html = '<option value="">Sin especificar</option>';
+    options.forEach(opt => {
+      html += '<option value="' + opt + '"' + (selected === opt ? ' selected' : '') + '>' + opt + '</option>';
+    });
+    return html;
+  }
+
+  // ---------- Add mode tabs (buscar vs manual) ----------
+  el.tabSearch.addEventListener('click', () => {
+    el.tabSearch.classList.add('active');
+    el.tabManual.classList.remove('active');
+    el.searchBox.style.display = 'flex';
+    el.manualForm.classList.remove('open');
+  });
+  el.tabManual.addEventListener('click', () => {
+    el.tabManual.classList.add('active');
+    el.tabSearch.classList.remove('active');
+    el.searchBox.style.display = 'none';
+    el.results.innerHTML = '';
+    setStatus('', false);
+    el.manualForm.classList.add('open');
+    // Se reconstruyen aquí (y no solo al cargar la página) porque la lista de
+    // animes disponibles para vincular cambia según lo que ya hayas agregado.
+    el.manualLinkPrequel.outerHTML = buildLinkPickerHtml('manualLinkPrequelPicker', null, null);
+    el.manualLinkPrequel = document.getElementById('manualLinkPrequelPicker');
+    el.manualLinkSequel.outerHTML = buildLinkPickerHtml('manualLinkSequelPicker', null, null);
+    el.manualLinkSequel = document.getElementById('manualLinkSequelPicker');
+    wireLinkPicker('manualLinkPrequelPicker');
+    wireLinkPicker('manualLinkSequelPicker');
+  });
+
+  // ---------- Manual add ----------
+  let manualImageData = '';
+
+  el.manualFile.addEventListener('change', () => {
+    const file = el.manualFile.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      manualImageData = reader.result;
+      el.manualPreview.src = manualImageData;
+      el.manualPreview.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+  });
+
+  el.manualImageUrl.addEventListener('input', () => {
+    if(el.manualImageUrl.value.trim()){
+      manualImageData = '';
+      el.manualPreview.src = el.manualImageUrl.value.trim();
+      el.manualPreview.style.display = 'block';
+    }
+  });
+
+  el.manualType.innerHTML = typeOptionsHtml('');
+  el.manualSeasonNumber.innerHTML = seasonOptionsHtml('');
+  el.manualRating.innerHTML = ratingOptionsHtml('');
+  el.manualWatchStatus.innerHTML = watchStatusOptionsHtml('completado');
+
+  function resetManualForm(){
+    el.manualTitle.value = '';
+    el.manualImageUrl.value = '';
+    el.manualGenres.value = '';
+    el.manualType.value = '';
+    el.manualYear.value = '';
+    el.manualEpisodes.value = '';
+    el.manualSeasonNumber.value = '';
+    el.manualRating.value = '';
+    el.manualWatchStatus.value = 'completado';
+    el.manualLinkPrequel.outerHTML = buildLinkPickerHtml('manualLinkPrequelPicker', null, null);
+    el.manualLinkPrequel = document.getElementById('manualLinkPrequelPicker');
+    el.manualLinkSequel.outerHTML = buildLinkPickerHtml('manualLinkSequelPicker', null, null);
+    el.manualLinkSequel = document.getElementById('manualLinkSequelPicker');
+    wireLinkPicker('manualLinkPrequelPicker');
+    wireLinkPicker('manualLinkSequelPicker');
+    el.manualSynopsis.value = '';
+    el.manualCurrentEpisode.value = '';
+    el.manualNotes.value = '';
+    el.manualFile.value = '';
+    manualImageData = '';
+    el.manualPreview.src = '';
+    el.manualPreview.style.display = 'none';
+  }
+
+  el.manualCancel.addEventListener('click', () => {
+    resetManualForm();
+    el.tabSearch.click();
+  });
+
+  el.manualSubmit.addEventListener('click', () => {
+    const title = el.manualTitle.value.trim();
+    if(!title){
+      setStatus('Escribe al menos el título del anime.', true);
+      return;
+    }
+    const image = manualImageData || el.manualImageUrl.value.trim();
+    const genres = splitGenres(el.manualGenres.value);
+    const rating = el.manualRating.value ? parseFloat(el.manualRating.value) : null;
+    const synopsis = el.manualSynopsis.value.trim() || 'Sin sinopsis disponible.';
+    const type = el.manualType.value || null;
+    const year = el.manualYear.value.trim() ? parseInt(el.manualYear.value, 10) : null;
+    const episodes = el.manualEpisodes.value.trim() ? parseInt(el.manualEpisodes.value, 10) : null;
+    const seasonNumber = el.manualSeasonNumber.value ? parseInt(el.manualSeasonNumber.value, 10) : null;
+    const watchStatus = el.manualWatchStatus.value || 'completado';
+    const currentEpisode = el.manualCurrentEpisode.value.trim() ? parseInt(el.manualCurrentEpisode.value, 10) : null;
+    const notes = el.manualNotes.value.trim();
+    const manualPrequelId = getLinkPickerValue('manualLinkPrequelPicker');
+    const manualSequelId = getLinkPickerValue('manualLinkSequelPicker');
+    const newId = 'm-' + Date.now();
+
+    animeList.push({
+      id: newId,
+      title: title,
+      image: image,
+      synopsis: synopsis,
+      year: year,
+      episodes: episodes,
+      type: type,
+      status: null,
+      seasonNumber: seasonNumber,
+      genres: genres,
+      rating: rating,
+      watchStatus: watchStatus,
+      manualPrequelId: null,
+      manualSequelId: null,
+      currentEpisode: currentEpisode,
+      notes: notes,
+      nextEpisode: null,
+      nextAiringAt: null,
+      addedAt: Date.now()
+    });
+    if(manualPrequelId) setManualLink(newId, 'prequel', manualPrequelId);
+    if(manualSequelId) setManualLink(newId, 'sequel', manualSequelId);
+    saveList();
+    render();
+    resetManualForm();
+    setStatus('"' + title + '" añadido a tu animeteca.', false);
+    el.tabSearch.click();
+  });
+
+  // ---------- Detail / edit modal ----------
+  let currentModalId = null;
+  let modalEditing = false;
+
+  function openModal(id){
+    const a = animeList.find(x => x.id === id);
+    if(!a) return;
+    currentModalId = id;
+    modalEditing = false;
+    renderModal(a);
+    el.modalOverlay.classList.add('open');
+  }
+
+  // Punto de entrada único al hacer clic en la vista previa: si la coincidencia
+  // se encontró dentro de tu propia colección (isLocal), abre esa ficha
+  // directo, sin ninguna consulta; si viene de AniList, sigue el flujo normal.
+  function openRelatedRef(ref){
+    if(!ref) return;
+    if(ref.isLocal){
+      openModal(ref.id);
+      return;
+    }
+    openRelatedAnime(ref);
+  }
+
+  // IDEA 1: al hacer clic en la vista previa de precuela/secuela — si ya está
+  // en tu colección abre esa ficha; si no, trae sus datos completos y abre el
+  // panel para agregarla (mismo flujo que un resultado de búsqueda normal).
+  async function openRelatedAnime(rel){
+    if(!rel) return;
+    const localId = 'al-' + rel.id;
+    const existing = animeList.find(x => x.id === localId);
+    if(existing){
+      openModal(existing.id);
+      return;
+    }
+    setStatus('Buscando "' + rel.title + '"…', false);
+    try{
+      const full = await fetchAniListById(rel.id);
+      if(full){
+        openAddPanel(full);
+        setStatus('', false);
+      } else {
+        setStatus('No se pudo cargar esa temporada. Búscala manualmente arriba.', true);
+      }
+    }catch(e){
+      setStatus('No se pudo cargar esa temporada. Búscala manualmente arriba.', true);
+    }
+  }
+
+  // Diálogo de confirmación propio (con el mismo estilo oscuro de la app) en
+  // vez del confirm() feo y genérico del navegador. Se usa con await:
+  //   if(await showConfirm('¿Seguro?', {confirmText:'Quitar', danger:true})) { ... }
+  function showConfirm(message, opts){
+    opts = opts || {};
+    return new Promise((resolve) => {
+      el.confirmMessage.textContent = message;
+      el.confirmOkBtn.textContent = opts.confirmText || 'Confirmar';
+      el.confirmCancelBtn.textContent = opts.cancelText || 'Cancelar';
+      el.confirmOkBtn.classList.toggle('btn-danger', !!opts.danger);
+      el.confirmOverlay.classList.add('open');
+
+      function cleanup(result){
+        el.confirmOverlay.classList.remove('open');
+        el.confirmOkBtn.removeEventListener('click', onOk);
+        el.confirmCancelBtn.removeEventListener('click', onCancel);
+        el.confirmOverlay.removeEventListener('click', onBackdrop);
+        document.removeEventListener('keydown', onKey);
+        resolve(result);
+      }
+      function onOk(){ cleanup(true); }
+      function onCancel(){ cleanup(false); }
+      function onBackdrop(e){ if(e.target === el.confirmOverlay) cleanup(false); }
+      function onKey(e){
+        if(e.key === 'Escape'){ e.preventDefault(); cleanup(false); }
+        else if(e.key === 'Enter'){ e.preventDefault(); cleanup(true); }
+      }
+
+      el.confirmOkBtn.addEventListener('click', onOk);
+      el.confirmCancelBtn.addEventListener('click', onCancel);
+      el.confirmOverlay.addEventListener('click', onBackdrop);
+      document.addEventListener('keydown', onKey);
+    });
+  }
+
+  function closeModal(){
+    el.modalOverlay.classList.remove('open');
+    currentModalId = null;
+    modalEditing = false;
+    setModalHeroImage(null);
+  }
+
+  el.modalClose.addEventListener('click', closeModal);
+  el.modalOverlay.addEventListener('click', e => {
+    if(e.target === el.modalOverlay) closeModal();
+  });
+
+  // IDEA 2: pone el póster del anime como fondo del modal (con degradado hacia
+  // el color sólido, definido en CSS vía .modal-card::before). null = sin imagen.
+  function setModalHeroImage(imageUrl){
+    const card = el.modalOverlay.querySelector('.modal-card');
+    if(!card) return;
+    card.style.backgroundImage = imageUrl ? "url('" + imageUrl.replace(/'/g, "%27") + "')" : '';
+  }
+
+  function renderModal(a){
+    setModalHeroImage(a.image || null);
+    if(modalEditing){
+      renderModalEdit(a);
+    } else {
+      renderModalView(a);
+    }
+  }
+
+  function renderModalView(a){
+    const badgeBits = [];
+    const type = translateType(a.type);
+    const status = translateStatus(a.status);
+    const seasonLabel = seasonOrdinalLabel(a.seasonNumber);
+    if(type) badgeBits.push(type);
+    if(a.year) badgeBits.push(a.year);
+    if(seasonLabel) badgeBits.push(seasonLabel);
+    if(status) badgeBits.push(status);
+    if(a.episodes) badgeBits.push(a.episodes + ' eps');
+    badgeBits.push(watchStatusLabel(a.watchStatus));
+
+    const genrePills = (a.genres && a.genres.length)
+      ? a.genres.map(g => '<span class="genre-pill">' + escapeHtml(g) + '</span>').join('')
+      : '<span class="genre-pill">Sin género</span>';
+
+    // Nombres alternativos (japonés nativo / inglés), solo si los tenemos y
+    // son distintos del título principal — igual que en la imagen de referencia.
+    const altTitles = [a.titleNative, a.titleEnglish]
+      .filter(t => t && t !== a.title);
+    const altTitlesHtml = altTitles.length
+      ? '<div class="modal-alt-titles">' + altTitles.map(t => escapeHtml(t)).join(' · ') + '</div>'
+      : '';
+
+    // IDEA 1: vista previa de la precuela/secuela — primero la de AniList si
+    // existe, y si no, la que se encuentre dentro de tu propia colección
+    // (funciona también con lo agregado manualmente).
+    function relatedCardHtml(rel, relKey, label){
+      if(!rel) return '';
+      return '<div class="related-card" data-rel="' + relKey + '">' +
+        '<img src="' + escapeHtml(rel.image) + '" alt="">' +
+        '<div class="related-text"><span class="related-label">' + label + '</span><span class="related-title">' + escapeHtml(rel.title) + '</span></div>' +
+      '</div>';
+    }
+    const related = resolveRelated(a);
+    const relatedHtml = (related.prequel || related.sequel)
+      ? '<div class="modal-related" id="modalRelated">' +
+          relatedCardHtml(related.prequel, 'prequel', '◀ Temporada anterior') +
+          relatedCardHtml(related.sequel, 'sequel', 'Temporada siguiente ▶') +
+        '</div>'
+      : '';
+
+    // IDEA "Progreso de episodios": barra de avance si hay episodio actual
+    // guardado (con o sin el total conocido).
+    let progressHtml = '';
+    if(a.currentEpisode && a.episodes){
+      const pct = Math.max(0, Math.min(100, Math.round((a.currentEpisode / a.episodes) * 100)));
+      progressHtml =
+        '<div class="episode-progress">' +
+          '<div class="episode-progress-label">Ep. ' + a.currentEpisode + ' de ' + a.episodes + '</div>' +
+          '<div class="episode-progress-track"><div class="episode-progress-fill" style="width:' + pct + '%;"></div></div>' +
+        '</div>';
+    } else if(a.currentEpisode){
+      progressHtml = '<div class="episode-progress"><div class="episode-progress-label">Episodio ' + a.currentEpisode + '</div></div>';
+    }
+
+    // IDEA "Próximos episodios": solo se muestra si la fecha que tenemos
+    // guardada todavía está en el futuro (si no, se ve desactualizada hasta
+    // que el respaldo automático la vuelva a consultar).
+    const nextEpText = formatRelativeFuture(a.nextAiringAt);
+    const nextEpisodeHtml = (a.nextEpisode && nextEpText)
+      ? '<div class="next-episode">📅 Próximo episodio: Ep. ' + a.nextEpisode + ' — ' + nextEpText + '</div>'
+      : '';
+
+    // IDEA "Notas personales": aparte de la sinopsis, solo se muestra si escribiste algo.
+    const notesHtml = a.notes
+      ? '<div class="personal-notes"><div class="personal-notes-label">📝 Mis notas</div><div class="personal-notes-text">' + escapeHtml(a.notes) + '</div></div>'
+      : '';
+
+    el.modalContent.innerHTML =
+      '<div class="modal-body">' +
+        '<img class="modal-poster" src="' + escapeHtml(a.image) + '" alt="">' +
+        '<div>' +
+          '<div class="modal-title">' + escapeHtml(a.title) + '</div>' +
+          altTitlesHtml +
+          (badgeBits.length ? '<div class="modal-badges">' + escapeHtml(badgeBits.join(' · ')) + '</div>' : '') +
+          progressHtml +
+          nextEpisodeHtml +
+          '<div class="modal-genres">' + genrePills + '</div>' +
+          '<div class="modal-synopsis">' + escapeHtml(a.synopsis || 'Sin sinopsis disponible.') + '</div>' +
+          notesHtml +
+          relatedHtml +
+        '</div>' +
+      '</div>' +
+      '<div class="modal-foot">' +
+        '<div class="modal-rating-block" id="modalRatingBlock"></div>' +
+        '<div class="modal-actions">' +
+          '<button class="btn-ghost" id="modalEditBtn">Editar</button>' +
+          '<button class="btn-ghost" id="modalDeleteBtn" style="color:var(--red);">Quitar del archivo</button>' +
+        '</div>' +
+      '</div>';
+
+    const relatedWrap = document.getElementById('modalRelated');
+    if(relatedWrap){
+      const prequelEl = relatedWrap.querySelector('[data-rel="prequel"]');
+      if(prequelEl) prequelEl.addEventListener('click', () => openRelatedRef(related.prequel));
+      const sequelEl = relatedWrap.querySelector('[data-rel="sequel"]');
+      if(sequelEl) sequelEl.addEventListener('click', () => openRelatedRef(related.sequel));
+    }
+
+    const ratingBlock = document.getElementById('modalRatingBlock');
+    renderStamp(ratingBlock, a);
+
+    document.getElementById('modalEditBtn').addEventListener('click', () => {
+      modalEditing = true;
+      renderModal(a);
+    });
+    document.getElementById('modalDeleteBtn').addEventListener('click', async () => {
+      const ok = await showConfirm('¿Quitar "' + a.title + '" de tu animeteca? Esta acción no se puede deshacer.', {confirmText:'Quitar', danger:true});
+      if(ok){
+        removeAnime(a.id);
+        closeModal();
+      }
+    });
+  }
+
+  function renderModalEdit(a){
+    el.modalContent.innerHTML =
+      '<div class="modal-body">' +
+        '<div>' +
+          '<img class="modal-poster" id="editPreview" src="' + escapeHtml(a.image) + '" alt="" style="margin-bottom:10px;">' +
+          '<div class="modal-edit-field">' +
+            '<label>URL de imagen</label>' +
+            '<input type="text" id="editImageUrl" value="' + escapeHtml(a.image) + '">' +
+          '</div>' +
+          '<div class="modal-edit-field">' +
+            '<label>O sube una imagen</label>' +
+            '<input type="file" id="editImageFile" accept="image/*">' +
+          '</div>' +
+        '</div>' +
+        '<div>' +
+          '<div class="modal-edit-field">' +
+            '<label>Título</label>' +
+            '<input type="text" id="editTitle" value="' + escapeHtml(a.title) + '">' +
+          '</div>' +
+          '<div class="modal-edit-field">' +
+            '<label>Género(s) — separados por coma</label>' +
+            '<input type="text" id="editGenres" value="' + escapeHtml((a.genres||[]).join(', ')) + '">' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="field-sections">' +
+        '<div class="field-section">' +
+          '<div class="field-section-title">📺 Detalles</div>' +
+          '<div class="manual-two-col">' +
+            '<div class="modal-edit-field">' +
+              '<label>Tipo</label>' +
+              '<select id="editType">' + typeOptionsHtml(a.type || '') + '</select>' +
+            '</div>' +
+            '<div class="modal-edit-field">' +
+              '<label>Año de emisión</label>' +
+              '<input type="text" inputmode="numeric" id="editYear" value="' + escapeHtml(a.year || '') + '">' +
+            '</div>' +
+          '</div>' +
+          '<div class="manual-two-col">' +
+            '<div class="modal-edit-field">' +
+              '<label>Episodios</label>' +
+              '<input type="text" inputmode="numeric" id="editEpisodes" value="' + escapeHtml(a.episodes || '') + '">' +
+            '</div>' +
+            '<div class="modal-edit-field">' +
+              '<label>Temporada</label>' +
+              '<select id="editSeasonNumber">' + seasonOptionsHtml(a.seasonNumber || '') + '</select>' +
+            '</div>' +
+          '</div>' +
+          '<div class="manual-two-col">' +
+            '<div class="modal-edit-field">' +
+              '<label>Estado</label>' +
+              '<select id="editWatchStatus">' + watchStatusOptionsHtml(a.watchStatus || 'completado') + '</select>' +
+            '</div>' +
+            '<div class="modal-edit-field">' +
+              '<label>Episodio actual</label>' +
+              '<input type="text" inputmode="numeric" id="editCurrentEpisode" value="' + escapeHtml(a.currentEpisode || '') + '" placeholder="ej. 8">' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="field-section">' +
+          '<div class="field-section-title">🔗 Precuela y secuela</div>' +
+          '<div class="manual-two-col">' +
+            '<div class="modal-edit-field">' +
+              '<label>Precuela (vínculo manual)</label>' +
+              '<div id="editManualPrequelPicker"></div>' +
+            '</div>' +
+            '<div class="modal-edit-field">' +
+              '<label>Secuela (vínculo manual)</label>' +
+              '<div id="editManualSequelPicker"></div>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="field-section">' +
+          '<div class="field-section-title">📝 Sinopsis y notas</div>' +
+          '<div class="modal-edit-field">' +
+            '<label>Sinopsis</label>' +
+            '<textarea id="editSynopsis">' + escapeHtml(a.synopsis || '') + '</textarea>' +
+          '</div>' +
+          '<div class="modal-edit-field">' +
+            '<label>Notas personales (opcional, aparte de la sinopsis)</label>' +
+            '<textarea id="editNotes" placeholder="Tus propios comentarios sobre este anime...">' + escapeHtml(a.notes || '') + '</textarea>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="modal-foot">' +
+        '<div class="modal-actions">' +
+          '<button class="btn-primary" id="modalSaveBtn">Guardar cambios</button>' +
+          '<button class="btn-ghost" id="modalCancelEditBtn">Cancelar</button>' +
+        '</div>' +
+      '</div>';
+
+    document.getElementById('editManualPrequelPicker').outerHTML = buildLinkPickerHtml('editManualPrequelPicker', a.id, a.manualPrequelId);
+    document.getElementById('editManualSequelPicker').outerHTML = buildLinkPickerHtml('editManualSequelPicker', a.id, a.manualSequelId);
+    wireLinkPicker('editManualPrequelPicker');
+    wireLinkPicker('editManualSequelPicker');
+
+    let editImageData = '';
+    document.getElementById('editImageFile').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        editImageData = reader.result;
+        document.getElementById('editPreview').src = editImageData;
+        document.getElementById('editImageUrl').value = '';
+      };
+      reader.readAsDataURL(file);
+    });
+    document.getElementById('editImageUrl').addEventListener('input', (e) => {
+      document.getElementById('editPreview').src = e.target.value;
+    });
+
+    document.getElementById('modalCancelEditBtn').addEventListener('click', () => {
+      modalEditing = false;
+      renderModal(a);
+    });
+
+    document.getElementById('modalSaveBtn').addEventListener('click', () => {
+      const titleInput = document.getElementById('editTitle');
+      const newTitle = titleInput.value.trim();
+      if(!newTitle){
+        titleInput.classList.add('field-error');
+        titleInput.focus();
+        titleInput.addEventListener('input', () => titleInput.classList.remove('field-error'), {once:true});
+        return;
+      }
+      a.title = newTitle;
+      a.image = editImageData || document.getElementById('editImageUrl').value.trim();
+      a.genres = splitGenres(document.getElementById('editGenres').value);
+      a.type = document.getElementById('editType').value || null;
+      a.year = document.getElementById('editYear').value.trim() ? parseInt(document.getElementById('editYear').value, 10) : null;
+      a.episodes = document.getElementById('editEpisodes').value.trim() ? parseInt(document.getElementById('editEpisodes').value, 10) : null;
+      a.seasonNumber = document.getElementById('editSeasonNumber').value ? parseInt(document.getElementById('editSeasonNumber').value, 10) : null;
+      a.watchStatus = document.getElementById('editWatchStatus').value || 'completado';
+      a.synopsis = document.getElementById('editSynopsis').value.trim() || 'Sin sinopsis disponible.';
+      const editEpisodeVal = document.getElementById('editCurrentEpisode').value.trim();
+      a.currentEpisode = editEpisodeVal ? parseInt(editEpisodeVal, 10) : null;
+      a.notes = document.getElementById('editNotes').value.trim();
+      setManualLink(a.id, 'prequel', getLinkPickerValue('editManualPrequelPicker'));
+      setManualLink(a.id, 'sequel', getLinkPickerValue('editManualSequelPicker'));
+      saveList();
+      render();
+      modalEditing = false;
+      renderModal(a);
+    });
+  }
+
+  // ---------- Rendering the collection ----------
+  function groupByLetter(list){
+    const groups = {};
+    list.forEach(a => {
+      const letter = (a.title || '?').trim().charAt(0).toUpperCase();
+      const key = /[A-Z]/.test(letter) ? letter : '#';
+      if(!groups[key]) groups[key] = [];
+      groups[key].push(a);
+    });
+    return groups;
+  }
+
+  function makeCard(a, index){
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.style.animationDelay = Math.min(index * 25, 300) + 'ms'; // efecto cascada, con un tope para colecciones grandes
+
+    const typeLabel = translateType(a.type);
+
+    card.innerHTML =
+      '<div class="poster-wrap">' +
+        '<img class="thumb" src="' + escapeHtml(a.image) + '" alt="">' +
+        '<div class="stamp-holder"></div>' +
+      '</div>' +
+      (typeLabel ? '<div class="type-chip">' + escapeHtml(typeLabel) + '</div>' : '') +
+      '<div class="card-title">' + escapeHtml(a.title) + '</div>';
+
+    // stamp / rating (overlaid on the poster, doesn't trigger the modal)
+    const holder = card.querySelector('.stamp-holder');
+    holder.addEventListener('click', e => e.stopPropagation());
+    renderStamp(holder, a);
+
+    // IDEA "Vista previa al pasar el mouse": solo en pantallas con mouse de
+    // verdad (matchMedia hover:hover), con un pequeño retraso para no aparecer
+    // mientras solo pasas de largo sobre varias tarjetas.
+    if(hoverCapable){
+      let hoverTimer = null;
+      card.addEventListener('mouseenter', () => {
+        hoverTimer = setTimeout(() => showHoverPreview(card, a), 400);
+      });
+      card.addEventListener('mouseleave', () => {
+        clearTimeout(hoverTimer);
+        hideHoverPreview();
+      });
+    }
+
+    // clicking anywhere else on the card opens the detail/edit view
+    card.addEventListener('click', () => { hideHoverPreview(); openModal(a.id); });
+
+    return card;
+  }
+
+  const hoverCapable = !!(window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches);
+
+  function showHoverPreview(card, a){
+    const synText = a.synopsis || 'Sin sinopsis disponible.';
+    const excerpt = synText.length > 180 ? synText.slice(0, 180).trim() + '…' : synText;
+    const metaBits = [];
+    if(a.year) metaBits.push(a.year);
+    if(a.episodes) metaBits.push(a.episodes + ' eps');
+    if(a.rating) metaBits.push('★ ' + a.rating);
+
+    el.hoverPreview.innerHTML =
+      '<div class="hover-preview-title">' + escapeHtml(a.title) + '</div>' +
+      (metaBits.length ? '<div class="hover-preview-meta">' + escapeHtml(metaBits.join(' · ')) + '</div>' : '') +
+      '<div class="hover-preview-text">' + escapeHtml(excerpt) + '</div>';
+
+    el.hoverPreview.style.display = 'block';
+    const rect = card.getBoundingClientRect();
+    const previewRect = el.hoverPreview.getBoundingClientRect();
+
+    let left = rect.right + 10;
+    if(left + previewRect.width > window.innerWidth - 10){
+      left = rect.left - previewRect.width - 10;
+    }
+    left = Math.max(10, left);
+
+    let top = rect.top;
+    if(top + previewRect.height > window.innerHeight - 10){
+      top = window.innerHeight - previewRect.height - 10;
+    }
+    top = Math.max(10, top);
+
+    el.hoverPreview.style.left = left + 'px';
+    el.hoverPreview.style.top = top + 'px';
+    requestAnimationFrame(() => el.hoverPreview.classList.add('visible'));
+  }
+
+  function hideHoverPreview(){
+    el.hoverPreview.classList.remove('visible');
+    el.hoverPreview.style.display = 'none';
+  }
+
+  function populateGenreFilter(){
+    const genreSet = new Set();
+    animeList.forEach(a => (a.genres||[]).forEach(g => genreSet.add(g)));
+    const genres = [...genreSet].sort((a,b) => a.localeCompare(b,'es'));
+    const prevValue = el.genreFilter.value || 'all';
+    el.genreFilter.innerHTML = '<option value="all">Todos los géneros</option>' +
+      genres.map(g => '<option value="' + escapeHtml(g) + '">' + escapeHtml(g) + '</option>').join('');
+    el.genreFilter.value = genres.includes(prevValue) ? prevValue : 'all';
+    currentGenre = el.genreFilter.value;
+  }
+
+  function render(){
+    el.countNum.textContent = animeList.length;
+    el.listArea.innerHTML = '';
+    el.rail.innerHTML = '';
+
+    if(!loaded) return;
+
+    populateGenreFilter();
+
+    if(animeList.length === 0){
+      el.listArea.innerHTML =
+        '<div class="empty-state"><div class="big">TU ANIMETECA ESTÁ VACÍA</div>' +
+        'Busca un título arriba para empezar tu colección.</div>';
+      return;
+    }
+
+    let filtered = animeList.slice();
+    if(currentGenre !== 'all'){
+      filtered = filtered.filter(a => a.genres && a.genres.includes(currentGenre));
+    }
+    if(libraryQuery){
+      filtered = filtered.filter(a => a.title.toLowerCase().includes(libraryQuery));
+    }
+    if(currentWatchStatus !== 'todo'){
+      filtered = filtered.filter(a => (a.watchStatus || 'completado') === currentWatchStatus);
+    }
+
+    if(filtered.length === 0){
+      const reason = libraryQuery
+        ? 'No hay nada que coincida con "' + escapeHtml(libraryQuery) + '".'
+        : 'Prueba con otro filtro o elige "Todos los géneros".';
+      el.listArea.innerHTML =
+        '<div class="empty-state"><div class="big">SIN RESULTADOS</div>' + reason + '</div>';
+      return;
+    }
+
+    let sorted = filtered.slice();
+    if(currentSort === 'alpha'){
+      sorted.sort((a,b) => a.title.localeCompare(b.title, 'es', {sensitivity:'base'}));
+    } else if(currentSort === 'rating'){
+      sorted.sort((a,b) => (b.rating||0) - (a.rating||0) || a.title.localeCompare(b.title,'es'));
+    } else if(currentSort === 'recent'){
+      sorted.sort((a,b) => b.addedAt - a.addedAt);
+    }
+
+    if(currentSort === 'alpha'){
+      const groups = groupByLetter(sorted);
+      const letters = Object.keys(groups).sort((a,b) => a.localeCompare(b,'es'));
+
+      // alphabet rail, full A-Z plus # for others
+      const fullAlpha = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+      fullAlpha.forEach(L => {
+        const a = document.createElement('a');
+        a.textContent = L;
+        if(groups[L]){
+          a.classList.add('has-items');
+          a.href = '#letter-' + L;
+        } else {
+          a.href = 'javascript:void(0)';
+        }
+        el.rail.appendChild(a);
+      });
+
+      let runningIndex = 0;
+      letters.forEach(L => {
+        const heading = document.createElement('div');
+        heading.className = 'letter-heading';
+        heading.id = 'letter-' + L;
+        heading.textContent = L;
+        el.listArea.appendChild(heading);
+
+        const grid = document.createElement('div');
+        grid.className = 'grid' + (currentView !== 'large' ? ' size-' + currentView : '');
+        groups[L].forEach(a => {
+          grid.appendChild(makeCard(a, runningIndex));
+          runningIndex++;
+        });
+        el.listArea.appendChild(grid);
+      });
+    } else {
+      const grid = document.createElement('div');
+      grid.className = 'grid' + (currentView !== 'large' ? ' size-' + currentView : '');
+      sorted.forEach((a, i) => grid.appendChild(makeCard(a, i)));
+      el.listArea.appendChild(grid);
+    }
+  }
+
+  // ---------- Events ----------
+  el.searchBtn.addEventListener('click', doSearch);
+  el.input.addEventListener('keydown', e => { if(e.key === 'Enter') doSearch(); });
+  el.input.addEventListener('input', () => {
+    // Los resultados solo se mantienen mientras haya texto en el buscador;
+    // si lo borras a mano, se limpian también (pero agregar un anime no los toca).
+    if(!el.input.value.trim()){
+      el.results.innerHTML = '';
+      lastSearchResults = [];
+      setStatus('', false);
+    }
+  });
+
+  el.sortGroup.addEventListener('click', e => {
+    const btn = e.target.closest('.sort-btn');
+    if(!btn) return;
+    currentSort = btn.dataset.sort;
+    [...el.sortGroup.children].forEach(b => b.classList.toggle('active', b === btn));
+    render();
+  });
+
+  el.viewGroup.addEventListener('click', e => {
+    const btn = e.target.closest('.view-btn');
+    if(!btn) return;
+    currentView = btn.dataset.view;
+    try{ localStorage.setItem('vista-animeteca', currentView); }catch(e){}
+    [...el.viewGroup.children].forEach(b => b.classList.toggle('active', b === btn));
+    render();
+  });
+
+  el.librarySearchInput.addEventListener('input', () => {
+    libraryQuery = el.librarySearchInput.value.trim().toLowerCase();
+    render();
+  });
+
+  el.watchTabs.addEventListener('click', e => {
+    const btn = e.target.closest('.watch-tab');
+    if(!btn) return;
+    currentWatchStatus = btn.dataset.status;
+    [...el.watchTabs.children].forEach(b => b.classList.toggle('active', b === btn));
+    render();
+  });
+
+  el.genreFilter.addEventListener('change', () => {
+    currentGenre = el.genreFilter.value;
+    render();
+  });
+
+  // ---------- Export / Import backup ----------
+  function readListFromStorage(key){
+    try{
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : [];
+    }catch(e){
+      return [];
+    }
+  }
+
+  // El respaldo .json siempre se genera leyendo directamente de localStorage,
+  // no solo de lo que esté en memoria en este momento.
+  function buildBackupBlob(){
+    const payload = {
+      app: 'mi-animeteca',
+      exportedAt: new Date().toISOString(),
+      items: readListFromStorage(STORAGE_KEY)
+    };
+    return new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+  }
+
+  function buildTxtReport(){
+    const sorted = animeList.slice().sort((a,b) => a.title.localeCompare(b.title, 'es', {sensitivity:'base'}));
+    const lines = [
+      'MI ANIMETECA — lista de animes vistos',
+      'Exportado: ' + new Date().toLocaleString('es'),
+      'Total: ' + sorted.length + ' títulos',
+      ''.padEnd(50,'-'),
+      ''
+    ];
+    sorted.forEach(a => {
+      const genres = (a.genres && a.genres.length) ? a.genres.join(', ') : 'Sin género registrado';
+      const rating = a.rating ? a.rating + '/10' : 'Sin calificar';
+      lines.push(a.title);
+      lines.push('  Género: ' + genres);
+      lines.push('  Calificación: ' + rating);
+      lines.push('');
+    });
+    return new Blob([lines.join('\n')], {type:'text/plain'});
+  }
+
+  function downloadBlob(blob, filename){
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  el.exportBtn.addEventListener('click', () => {
+    if(animeList.length === 0){
+      setStatus('Tu animeteca está vacía, no hay nada que exportar todavía.', false);
+      return;
+    }
+    const stamp = new Date().toISOString().slice(0,10);
+    downloadBlob(buildBackupBlob(), 'animeteca-respaldo-' + stamp + '.json');
+    setStatus('Respaldo descargado: guarda ese archivo en un lugar seguro.', false);
+  });
+
+  el.exportTxtBtn.addEventListener('click', () => {
+    if(animeList.length === 0){
+      setStatus('Tu animeteca está vacía, no hay nada que exportar todavía.', false);
+      return;
+    }
+    const stamp = new Date().toISOString().slice(0,10);
+    downloadBlob(buildTxtReport(), 'animeteca-lista-' + stamp + '.txt');
+    setStatus('Lista descargada en formato de texto.', false);
+  });
+
+  // ---------- Exportar lista como PDF (con carátulas) ----------
+  // Las imágenes se bajan aquí, en tu navegador (no en un servidor), igual
+  // que cuando la app las muestra normalmente. Si alguna carátula no se puede
+  // leer (bloqueo de CORS del sitio que la aloja, o viene de una URL rota),
+  // ese título se agrega igual, solo que sin miniatura.
+  function withTimeout(promise, ms){
+    return Promise.race([
+      promise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))
+    ]);
+  }
+
+  // Se recuerda qué ruta funcionó la primera vez (directa o por proxy), para
+  // no perder tiempo reintentando la que ya sabemos que falla en las
+  // siguientes cientos de imágenes de una colección grande.
+  let imagePreferredRouteIndex = null;
+  function imageRoutesFor(url){
+    // wsrv.nl está hecho específicamente para esto (servir imágenes de otro
+    // sitio con permiso de lectura entre orígenes), suele ser más confiable
+    // que un proxy genérico para binarios como imágenes.
+    const all = [
+      {index:0, url: 'https://wsrv.nl/?url=' + encodeURIComponent(url.replace(/^https?:\/\//, ''))},
+      {index:1, url: url},
+      {index:2, url: 'https://corsproxy.io/?url=' + encodeURIComponent(url)},
+      {index:3, url: 'https://proxy.cors.sh/' + url}
+    ];
+    if(imagePreferredRouteIndex === null) return all;
+    return [all[imagePreferredRouteIndex]].concat(all.filter(r => r.index !== imagePreferredRouteIndex));
+  }
+
+  async function fetchImageAsDataUri(url){
+    if(!url) return null;
+    if(url.indexOf('data:') === 0) return url; // ya es base64 (imagen subida a mano)
+
+    const routes = imageRoutesFor(url);
+    for(const route of routes){
+      try{
+        const resp = await withTimeout(fetch(route.url), 8000);
+        if(!resp.ok) continue;
+        const blob = await resp.blob();
+        if(!blob || blob.size === 0) continue;
+        const dataUri = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        if(imagePreferredRouteIndex === null) imagePreferredRouteIndex = route.index;
+        return dataUri;
+      }catch(e){
+        // se prueba la siguiente ruta
+      }
+    }
+    return null;
+  }
+
+  // Baja todas las carátulas en paralelo, por tandas pequeñas, para que una
+  // colección grande no tarde una eternidad (ni sature la conexión de golpe).
+  async function prefetchImages(sorted, onProgress){
+    const results = new Array(sorted.length).fill(null);
+    const batchSize = 6;
+    let done = 0;
+    for(let i = 0; i < sorted.length; i += batchSize){
+      const batch = sorted.slice(i, i + batchSize);
+      const batchResults = await Promise.all(batch.map(a => fetchImageAsDataUri(a.image)));
+      batchResults.forEach((r, idx) => { results[i + idx] = r; });
+      done += batch.length;
+      onProgress(Math.min(done, sorted.length), sorted.length);
+    }
+    return results;
+  }
+  function dataUriFormat(dataUri){
+    const m = dataUri.match(/^data:image\/(\w+);base64,/i);
+    const type = m ? m[1].toLowerCase() : '';
+    if(type === 'png') return 'PNG';
+    if(type === 'webp') return 'WEBP';
+    return 'JPEG';
+  }
+
+  async function buildAndDownloadPdf(){
+    if(animeList.length === 0){
+      setStatus('Tu animeteca está vacía, no hay nada que exportar todavía.', false);
+      return;
+    }
+    if(!window.jspdf || !window.jspdf.jsPDF){
+      setStatus('No se pudo cargar el generador de PDF (revisa tu conexión) e inténtalo de nuevo.', true);
+      return;
+    }
+
+    try{
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({unit:'mm', format:'a4'});
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const marginX = 15;
+      const marginTop = 28;
+      const marginBottom = 18;
+      const thumbW = 18, thumbH = 25;
+      const rowGap = 5;
+      const lineH = 5;
+
+      const sorted = animeList.slice().sort((a,b) => a.title.localeCompare(b.title, 'es', {sensitivity:'base'}));
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(18);
+      doc.text('MI ANIMETECA', marginX, 15);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(110);
+      doc.text('Exportado: ' + new Date().toLocaleString('es') + '  ·  Total: ' + sorted.length + ' títulos', marginX, 21);
+      doc.setTextColor(0);
+
+      setStatus('Preparando PDF: cargando carátulas (0/' + sorted.length + ')…', false);
+      const images = await prefetchImages(sorted, (done, totalCount) => {
+        setStatus('Preparando PDF: cargando carátulas (' + done + '/' + totalCount + ')…', false);
+      });
+
+      let y = marginTop;
+
+      for(let i = 0; i < sorted.length; i++){
+        const a = sorted[i];
+        const dataUri = images[i];
+        const textX = marginX + thumbW + 6;
+        const textWidth = pageWidth - textX - marginX;
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(12);
+        const titleLines = doc.splitTextToSize(a.title, textWidth);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9.5);
+        const genres = (a.genres && a.genres.length) ? a.genres.join(', ') : 'Sin género';
+        const genreLines = doc.splitTextToSize('Género: ' + genres, textWidth);
+
+        const textBlockHeight = (titleLines.length + genreLines.length + 1) * lineH;
+        const rowHeight = Math.max(thumbH, textBlockHeight);
+
+        if(y + rowHeight > pageHeight - marginBottom){
+          doc.addPage();
+          y = marginTop;
+        }
+
+        if(dataUri){
+          try{ doc.addImage(dataUri, dataUriFormat(dataUri), marginX, y, thumbW, thumbH); }
+          catch(e){ /* imagen inválida o formato raro: se sigue sin ella */ }
+        }
+
+        let ty = y + lineH;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(12);
+        doc.setTextColor(20);
+        doc.text(titleLines, textX, ty);
+        ty += titleLines.length * lineH;
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9.5);
+        doc.setTextColor(90);
+        doc.text(genreLines, textX, ty);
+        ty += genreLines.length * lineH;
+
+        const ratingText = (a.rating !== null && a.rating !== undefined)
+          ? (a.rating === RATING_SPECIAL ? '✦ Obra maestra' : 'Calificación: ' + a.rating + '/10')
+          : 'Sin calificar';
+        doc.text(ratingText, textX, ty);
+        doc.setTextColor(0);
+
+        doc.setDrawColor(225);
+        doc.line(marginX, y + rowHeight + 3, pageWidth - marginX, y + rowHeight + 3);
+
+        y += rowHeight + rowGap + 3;
+      }
+
+      const withImage = images.filter(Boolean).length;
+      const stamp = new Date().toISOString().slice(0,10);
+      doc.save('animeteca-lista-' + stamp + '.pdf');
+      setStatus(
+        'PDF descargado con ' + sorted.length + ' títulos (' + withImage + ' con carátula' +
+        (withImage < sorted.length ? ', ' + (sorted.length - withImage) + ' sin ella' : '') + ').',
+        false
+      );
+    }catch(e){
+      setStatus('No se pudo generar el PDF. Inténtalo de nuevo.', true);
+    }
+  }
+
+  el.exportPdfBtn.addEventListener('click', () => { buildAndDownloadPdf(); });
+
+  el.importBtn.addEventListener('click', () => el.importFile.click());
+
+  function normalizeImportedItem(item){
+    return {
+      id: item.id,
+      title: item.title,
+      titleNative: item.titleNative || null,
+      titleEnglish: item.titleEnglish || null,
+      image: item.image || '',
+      synopsis: item.synopsis || 'Sin sinopsis disponible.',
+      year: item.year || null,
+      episodes: item.episodes || null,
+      type: item.type || null,
+      status: item.status || null,
+      seasonNumber: item.seasonNumber || null,
+      genres: Array.isArray(item.genres) ? item.genres : [],
+      rating: item.rating || null,
+      watchStatus: item.watchStatus || 'completado',
+      relPrequel: item.relPrequel || null,
+      relSequel: item.relSequel || null,
+      relFetched: item.relFetched === true, // si no venía en el respaldo, se re-consulta luego
+      manualPrequelId: item.manualPrequelId || null,
+      manualSequelId: item.manualSequelId || null,
+      currentEpisode: item.currentEpisode || null,
+      notes: item.notes || '',
+      nextEpisode: item.nextEpisode || null,
+      nextAiringAt: item.nextAiringAt || null,
+      addedAt: item.addedAt || Date.now()
+    };
+  }
+
+  // Mezcla una lista importada dentro de la clave de almacenamiento indicada
+  // (sin tocar lo que esté en memoria si no es la colección activa ahora mismo).
+  function mergeItemsIntoStorageKey(key, incomingItems){
+    const existing = readListFromStorage(key);
+    let added = 0, skipped = 0;
+    incomingItems.forEach(item => {
+      if(item && typeof item.id !== 'undefined' && item.title){
+        if(existing.some(a => a.id === item.id)){
+          skipped++;
+        } else {
+          existing.push(normalizeImportedItem(item));
+          added++;
+        }
+      }
+    });
+    try{ localStorage.setItem(key, JSON.stringify(existing)); }catch(e){}
+    return {added, skipped};
+  }
+
+  el.importFile.addEventListener('change', () => {
+    const file = el.importFile.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try{
+        const parsed = JSON.parse(reader.result);
+        // Compatibilidad con respaldos viejos (un solo arreglo) y con {items:[...]}.
+        const items = Array.isArray(parsed) ? parsed : (parsed.items || []);
+
+        if(items.length === 0){
+          setStatus('El archivo no tiene un formato de respaldo válido.', true);
+          return;
+        }
+
+        const result = mergeItemsIntoStorageKey(STORAGE_KEY, items);
+        animeList = readListFromStorage(STORAGE_KEY);
+        render();
+        setStatus('Respaldo importado: ' + result.added + ' añadidos, ' + result.skipped + ' ya existían.', false);
+      }catch(e){
+        setStatus('No se pudo leer el archivo. Asegúrate de que sea un respaldo exportado desde aquí.', true);
+      }
+      el.importFile.value = '';
+    };
+    reader.readAsText(file);
+  });
+
+  [...el.viewGroup.children].forEach(b => b.classList.toggle('active', b.dataset.view === currentView));
+
+  // ---------- Pestañas de nivel superior: Colección / Estadísticas ----------
+  el.pageTabs.addEventListener('click', e => {
+    const btn = e.target.closest('.page-tab');
+    if(!btn) return;
+    [...el.pageTabs.children].forEach(b => b.classList.toggle('active', b === btn));
+    if(btn.dataset.page === 'stats'){
+      el.collectionView.style.display = 'none';
+      el.statsView.style.display = 'block';
+      renderStats();
+    } else {
+      el.statsView.style.display = 'none';
+      el.collectionView.style.display = 'block';
+    }
+  });
+
+  // ---------- Panel de estadísticas: calcula todo a partir de animeList ----------
+  function computeStats(){
+    const total = animeList.length;
+    const rated = animeList.filter(a => a.rating !== null && a.rating !== undefined);
+    const avgRating = rated.length
+      ? (rated.reduce((sum, a) => sum + a.rating, 0) / rated.length)
+      : null;
+    const masterpieces = animeList.filter(a => a.rating === RATING_SPECIAL).length;
+
+    // Episodios REALMENTE vistos: un "Completado" cuenta su total de
+    // episodios; un "Viendo"/"Pausado" cuenta hasta donde vas (episodio
+    // actual); "Por Ver"/"Descartado" no suman nada — antes se sumaban los
+    // episodios de TODO lo agregado, incluso lo que ni empezabas a ver.
+    const episodesWatched = animeList.reduce((sum, a) => {
+      const status = a.watchStatus || 'completado';
+      if(status === 'completado') return sum + (Number(a.episodes) || 0);
+      if(status === 'viendo' || status === 'pausado') return sum + (Number(a.currentEpisode) || 0);
+      return sum;
+    }, 0);
+
+    const byStatus = {};
+    WATCH_STATUSES.forEach(w => byStatus[w.value] = 0);
+    animeList.forEach(a => {
+      const s = a.watchStatus || 'completado';
+      byStatus[s] = (byStatus[s] || 0) + 1;
+    });
+
+    const genreCount = {};
+    animeList.forEach(a => (a.genres || []).forEach(g => { genreCount[g] = (genreCount[g] || 0) + 1; }));
+    const topGenres = Object.entries(genreCount).sort((a,b) => b[1] - a[1]).slice(0, 6);
+
+    return {total, avgRating, masterpieces, episodesWatched, byStatus, topGenres};
+  }
+
+  function renderStats(){
+    const s = computeStats();
+
+    if(s.total === 0){
+      el.statsView.innerHTML =
+        '<div class="empty-state"><div class="big">TODAVÍA NO HAY DATOS</div>' +
+        'Agrega algunos animes a tu colección y vuelve aquí para ver tus estadísticas.</div>';
+      return;
+    }
+
+    const statCardsHtml =
+      '<div class="stat-cards">' +
+        '<div class="stat-card"><div class="stat-num">' + s.total + '</div><div class="stat-label">Animes en tu archivo</div></div>' +
+        '<div class="stat-card"><div class="stat-num">' + s.byStatus['completado'] + '</div><div class="stat-label">Completados</div></div>' +
+        '<div class="stat-card"><div class="stat-num">' + s.byStatus['viendo'] + '</div><div class="stat-label">Viendo</div></div>' +
+        '<div class="stat-card"><div class="stat-num">' + s.byStatus['por-ver'] + '</div><div class="stat-label">Por Ver</div></div>' +
+        '<div class="stat-card"><div class="stat-num">' + s.byStatus['pausado'] + '</div><div class="stat-label">Pausados</div></div>' +
+        '<div class="stat-card"><div class="stat-num">' + s.byStatus['descartado'] + '</div><div class="stat-label">Descartados</div></div>' +
+        '<div class="stat-card"><div class="stat-num">' + (s.avgRating !== null ? s.avgRating.toFixed(1) : '—') + '</div><div class="stat-label">Calificación promedio</div></div>' +
+        '<div class="stat-card"><div class="stat-num">' + s.episodesWatched.toLocaleString('es') + '</div><div class="stat-label">Episodios vistos</div></div>' +
+        '<div class="stat-card"><div class="stat-num">' + s.masterpieces + ' ✦</div><div class="stat-label">Obras maestra</div></div>' +
+      '</div>';
+
+    const maxStatus = Math.max(1, ...WATCH_STATUSES.map(w => s.byStatus[w.value]));
+    const statusBarsHtml =
+      '<div class="stats-block">' +
+        '<div class="stats-block-title">Por estado</div>' +
+        WATCH_STATUSES.map(w => {
+          const count = s.byStatus[w.value];
+          const pct = Math.round((count / maxStatus) * 100);
+          return '<div class="stat-bar-row">' +
+            '<div class="stat-bar-label">' + escapeHtml(w.label) + '</div>' +
+            '<div class="stat-bar-track"><div class="stat-bar-fill" style="width:' + pct + '%;"></div></div>' +
+            '<div class="stat-bar-count">' + count + '</div>' +
+          '</div>';
+        }).join('') +
+      '</div>';
+
+    const maxGenre = s.topGenres.length ? s.topGenres[0][1] : 1;
+    const genresHtml =
+      '<div class="stats-block">' +
+        '<div class="stats-block-title">Géneros más vistos</div>' +
+        (s.topGenres.length
+          ? s.topGenres.map(([genre, count]) => {
+              const pct = Math.round((count / maxGenre) * 100);
+              return '<div class="stat-bar-row">' +
+                '<div class="stat-bar-label">' + escapeHtml(genre) + '</div>' +
+                '<div class="stat-bar-track"><div class="stat-bar-fill genre-fill" style="width:' + pct + '%;"></div></div>' +
+                '<div class="stat-bar-count">' + count + '</div>' +
+              '</div>';
+            }).join('')
+          : '<div class="search-hint">Todavía no hay géneros registrados.</div>')+
+      '</div>';
+
+    el.statsView.innerHTML =
+      '<div class="stats-heading">Estadísticas de tu animeteca</div>' +
+      statCardsHtml +
+      '<div class="stats-columns">' + statusBarsHtml + genresHtml + '</div>';
+  }
+
+  // ---------- IDEA "Selector de color de acento" ----------
+  function hexToRgb(hex){
+    const h = hex.replace('#', '');
+    const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
+    const n = parseInt(full, 16);
+    return {r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255};
+  }
+  function rgbToHex(r, g, b){
+    return '#' + [r, g, b].map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
+  }
+  function darkenHex(hex, factor){
+    const {r, g, b} = hexToRgb(hex);
+    return rgbToHex(r * factor, g * factor, b * factor);
+  }
+  function applyAccentColor(hex){
+    document.documentElement.style.setProperty('--accent', hex);
+    document.documentElement.style.setProperty('--accent-hover', darkenHex(hex, 0.82));
+    el.accentPickerSwatch.style.background = hex;
+    el.accentColorInput.value = hex;
+  }
+  const savedAccent = localStorage.getItem('acento-color');
+  if(savedAccent) applyAccentColor(savedAccent);
+
+  el.accentPickerBtn.addEventListener('click', () => el.accentColorInput.click());
+  el.accentColorInput.addEventListener('input', () => {
+    const hex = el.accentColorInput.value;
+    applyAccentColor(hex);
+    try{ localStorage.setItem('acento-color', hex); }catch(e){}
+  });
+
+  loadList();
+})();
+</script>
+</body>
+</html>
