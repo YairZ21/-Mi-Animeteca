@@ -8,6 +8,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0c0e1a">
+<link rel="apple-touch-icon" href="icon-512.png">
 </head>
 <body>
 
@@ -218,6 +221,12 @@
     </div>
   </div>
 </div>
+<!-- Botón para volver arriba -->
+<button id="scrollTopBtn" class="scroll-top-btn" title="Volver arriba">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="18 15 12 9 6 15"></polyline>
+  </svg>
+</button>
 
 <div class="hover-preview" id="hoverPreview"></div>
 
@@ -1845,7 +1854,8 @@
   }
 
 function buildHtmlReport(){
-    const sorted = animeList.slice().sort((a,b) => a.title.localeCompare(b.title, 'es', {sensitivity:'base'}));
+    const completados = animeList.filter(a => (a.watchStatus || 'completado') === 'completado');
+    const sorted = completados.sort((a,b) => a.title.localeCompare(b.title, 'es', {sensitivity:'base'}));
     const stamp = new Date().toLocaleString('es');
     
     let html = `<!DOCTYPE html>
@@ -2020,11 +2030,14 @@ function buildHtmlReport(){
     setStatus('Respaldo descargado: guarda ese archivo en un lugar seguro.', false);
   });
 
-  el.exportHtmlBtn.addEventListener('click', () => {
-    if(animeList.length === 0){
-      setStatus('Tu animeteca está vacía, no hay nada que exportar todavía.', false);
+el.exportHtmlBtn.addEventListener('click', () => {
+    const completados = animeList.filter(a => (a.watchStatus || 'completado') === 'completado');
+    
+    if(completados.length === 0){
+      setStatus('No tienes animes completados para exportar.', false);
       return;
     }
+    
     const stamp = new Date().toISOString().slice(0,10);
     downloadBlob(buildHtmlReport(), 'animeteca-lista-' + stamp + '.html');
     setStatus('Lista descargada. Ábrela en tu navegador para ver las carátulas y presiona Ctrl+P si deseas guardarla como PDF.', false);
@@ -2236,6 +2249,26 @@ function buildHtmlReport(){
     const hex = el.accentColorInput.value;
     applyAccentColor(hex);
     try{ localStorage.setItem('acento-color', hex); }catch(e){}
+  });
+
+// Lógica del botón "Volver arriba"
+  const scrollTopBtn = document.getElementById('scrollTopBtn');
+
+  window.addEventListener('scroll', () => {
+    // Si bajamos más de 300 píxeles, mostramos el botón
+    if (window.scrollY > 300) {
+      scrollTopBtn.classList.add('visible');
+    } else {
+      scrollTopBtn.classList.remove('visible');
+    }
+  });
+
+  scrollTopBtn.addEventListener('click', () => {
+    // Vuelve al inicio de forma suave
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
   });
 
   loadList();

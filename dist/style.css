@@ -228,7 +228,7 @@
   /* IDEA "Barra de controles fija": orden/vista + búsqueda/género + índice
      alfabético quedan pegados arriba de la pantalla al hacer scroll */
   .sticky-controls{
-    position:sticky;
+    position:relative;
     top:0;
     z-index:40;
     background:var(--ink);
@@ -236,18 +236,7 @@
     margin-top:4px;
     margin-bottom:6px;
   }
-  .sticky-controls::after{ /* sombra sutil que separa la barra del contenido cuando ya está pegada arriba */
-    content:'';
-    position:absolute;
-    left:-20px;
-    right:-20px;
-    bottom:-10px;
-    height:10px;
-    background:linear-gradient(to bottom, rgba(0,0,0,.18), transparent);
-    pointer-events:none;
-  }
-  .sticky-controls .controls:last-of-type{margin-bottom:12px;}
-
+  
   /* --- Buscador discreto dentro de tu colección ya agregada --- */
   .library-search{
     position:relative;
@@ -356,23 +345,46 @@
   }
   .backup-btn:hover{border-color:var(--accent);color:var(--accent);}
 
-  /* --- Índice alfabético A-Z (rail) que aparece con el orden "A-Z" --- */
-  .rail{
-    display:flex;
-    flex-wrap:wrap;
-    gap:4px;
-    max-width:560px;
+/* --- Índice alfabético A-Z vertical en el costado derecho --- */
+  .rail {
+    position: fixed;
+    right: 8px;          /* Lo pega al costado derecho de la pantalla */
+    top: 50%;             /* Lo centra verticalmente */
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column; /* Apila las letras hacia abajo */
+    gap: 1px;
+    z-index: 100;
+    background: rgba(21, 24, 48, 0.85); /* Fondo oscuro semitransparente */
+    backdrop-filter: blur(4px); /* Efecto de cristal */
+    border: 1px solid var(--line);
+    padding: 10px 4px;
+    border-radius: 20px;
+    max-width: fit-content;
   }
-  .rail a{ /* cada letra del índice */
-    font-family:'IBM Plex Mono',monospace;
-    font-size:11px;
-    color:var(--muted-dark);
-    text-decoration:none;
-    width:20px;
-    text-align:center;
+
+  .rail a { 
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;      /* Letra más pequeña para que quepa bien en pantallas móviles */
+    color: var(--muted-dark);
+    text-decoration: none;
+    width: 22px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
   }
-  .rail a.has-items{color:var(--accent);} /* letra con al menos un anime */
-  .rail a.has-items:hover{text-decoration:underline;}
+
+  .rail a.has-items {
+    color: var(--accent);
+    font-weight: 700;
+  } 
+
+  .rail a.has-items:hover {
+    text-decoration: none;
+    background: rgba(255, 255, 255, 0.1);
+  }
 
   /* ============================================================
      ENCABEZADOS DE LETRA — divisores "A", "B", "C"... que agrupan
@@ -1386,3 +1398,152 @@
     line-height:1.5;
     color:var(--muted);
   }
+
+  /* ============================================================
+   ADAPTACIÓN MÓVIL (MEDIA QUERIES)
+   ============================================================ */
+
+@media (max-width: 768px) {
+  /* Espaciado general de la app más reducido */
+  .app {
+    padding: 16px 12px 60px;
+  }
+
+  /* Títulos más compactos para evitar desbordes */
+  .title-block h1 {
+    font-size: 36px;
+  }
+  .title-block .sub {
+    font-size: 10px;
+  }
+
+  /* Buscador de la biblioteca y filtros a ancho completo */
+  .library-search {
+    width: 100%;
+  }
+  .library-search input,
+  .library-search input:focus {
+    width: 100%; 
+  }
+  .filter-group {
+    width: 100%;
+  }
+
+  /* Cuadrícula de animes: ajusta para mostrar al menos 2 columnas en móvil */
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+  }
+  
+  /* Pestañas de estado (Todo, Viendo...) con scroll horizontal táctil */
+  .watch-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .watch-tab {
+    white-space: nowrap;
+  }
+
+  /* Formulario manual apilado en 1 sola columna (imagen arriba, datos abajo) */
+  .manual-grid,
+  .manual-two-col {
+    grid-template-columns: 1fr;
+  }
+
+  /* Controles y respaldos se adaptan al ancho completo */
+  .controls, .backup-group {
+    width: 100%;
+    justify-content: center;
+  }
+  .backup-btn {
+    flex: 1;
+    text-align: center;
+  }
+
+  /* Botones de acción del modal ocupan todo el ancho y se alinean lado a lado */
+  .modal-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .modal-actions button {
+    flex: 1;
+    text-align: center;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Tarjetas de resultados de búsqueda manual apiladas a 1 columna */
+  .results {
+    grid-template-columns: 1fr;
+  }
+  
+  /* Botones superiores (Colección/Estadísticas) apilados verticalmente */
+  .page-tabs {
+    flex-direction: column;
+  }
+  .page-tab {
+    text-align: center;
+    width: 100%;
+  }
+  
+  /* Selector de calificación (estrellas) más compacto en el modal */
+  .rate-picker {
+    gap: 2px;
+  }
+  .rate-picker button {
+    font-size: 10px;
+    padding: 8px 0;
+  }
+}
+
+/* ============================================================
+   BOTÓN VOLVER ARRIBA
+   ============================================================ */
+.scroll-top-btn {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 46px;
+  height: 46px;
+  background: var(--accent);
+  color: var(--ink);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px var(--shadow);
+  z-index: 90;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(15px);
+  transition: opacity 0.3s ease, transform 0.3s ease, background 0.2s;
+}
+
+.scroll-top-btn.visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.scroll-top-btn:hover {
+  background: var(--accent-hover);
+  transform: translateY(-3px);
+}
+
+.scroll-top-btn svg {
+  width: 24px;
+  height: 24px;
+  margin-top: -2px; /* Centra visualmente la flecha */
+}
+
+/* En móviles, lo separamos un poco más del borde */
+@media (max-width: 768px) {
+  .scroll-top-btn {
+    bottom: 20px;
+    right: 20px;
+  }
+}
