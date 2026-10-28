@@ -154,6 +154,7 @@
     <div class="backup-group">
       <button class="backup-btn" id="exportBtn">Exportar respaldo (.json)</button>
       <button class="backup-btn" id="exportHtmlBtn">Exportar lista (PDF con carátulas)</button>
+      <button class="backup-btn" id="exportXmlBtn">Exportar lista (XML para MyAnimeList)</button>
       <button class="backup-btn" id="importBtn">Importar respaldo</button>
       <input type="file" id="importFile" accept="application/json" style="display:none;">
     </div>
@@ -263,6 +264,7 @@
     librarySearchInput: document.getElementById('librarySearchInput'),
     exportBtn: document.getElementById('exportBtn'),
     exportHtmlBtn: document.getElementById('exportHtmlBtn'),
+    exportXmlBtn: document.getElementById('exportXmlBtn'),
     importBtn: document.getElementById('importBtn'),
     importFile: document.getElementById('importFile'),
     tabSearch: document.getElementById('tabSearch'),
@@ -2250,6 +2252,184 @@ el.exportHtmlBtn.addEventListener('click', () => {
     applyAccentColor(hex);
     try{ localStorage.setItem('acento-color', hex); }catch(e){}
   });
+
+  // --- GENERACIÓN DE XML PARA ANILIST / MYANIMELIST CON MAPEO DE IDs ---
+  async function generateAniListXml() {
+    const alIds = animeList
+      .filter(a => a.id && a.id.toString().startsWith('al-'))
+      .map(a => parseInt(a.id.replace('al-', '')));
+
+    const idMap = {};
+
+    const chunkSize = 50;
+    for (let i = 0; i < alIds.length; i += chunkSize) {
+      const chunk = alIds.slice(i, i + chunkSize);
+      const query = `query ($in: [Int]) { Page(perPage: 50) { media(id_in: $in, type: ANIME) { id idMal } } }`;
+      try {
+        const resp = await fetchAniListGraphQL(query, { in: chunk });
+        if (resp.ok) {
+          const json = await resp.json();
+          if (json.data && json.data.Page && json.data.Page.media) {
+            json.data.Page.media.forEach(m => {
+              if (m.idMal) idMap[m.id] = m.idMal;
+            });
+          }
+        }
+      } catch (e) {
+        console.warn('Fallo al obtener lote de IDs', e);
+      }
+      await new Promise(r => setTimeout(r, 500));
+    }
+
+    let xml = '<?xml version="1.0" encoding="UTF-8" ?>\n';
+    xml += '<myanimelist>\n  <myinfo>\n';
+    xml += '    <user_export_type>1</user_export_type>\n';
+    xml += `    <user_total_anime>${animeList.length}</user_total_anime>\n`;
+    xml += '  </myinfo>\n';
+
+    animeList.forEach(a => {
+      let statusStr = 'Completed';
+      if (a.watchStatus === 'viendo') statusStr = 'Watching';
+      else if (a.watchStatus === 'por-ver') statusStr = 'Plan to Watch';
+      else if (a.watchStatus === 'pausado') statusStr = 'On-Hold';
+      else if (a.watchStatus === 'descartado') statusStr = 'Dropped';
+
+      let score = a.rating || 0;
+      if (score > 10) score = 10;
+
+      let watchedEps = a.currentEpisode || 0;
+      if (statusStr === 'Completed' && a.episodes && watchedEps === 0) {
+          watchedEps = a.episodes;
+      }
+
+      let malId = 0;
+      if (a.id && a.id.toString().startsWith('al-')) {
+        const rawId = parseInt(a.id.replace('al-', ''));
+        if (idMap[rawId]) malId = idMap[rawId];
+      }
+
+      const safeTitle = (a.title || '').replace(/]]>/g, ']]&gt;');
+      const safeNotes = (a.notes || '').replace(/]]>/g, ']]&gt;');
+
+      xml += '  <anime>\n';
+      xml += `    <series_animedb_id>${malId}</series_animedb_id>\n`;
+      xml += `    <series_title><![CDATA[${safeTitle}]]></series_title>\n`;
+      xml += `    <my_watched_episodes>${watchedEps}</my_watched_episodes>\n`;
+      xml += `    <my_score>${score}</my_score>\n`;
+      xml += `    <my_status>${statusStr}</my_status>\n`;
+      xml += '    <update_on_import>1</update_on_import>\n';
+      if (a.notes) {
+        xml += `    <my_tags><![CDATA[${safeNotes}]]></my_tags>\n`;
+      }
+      xml += '  </anime>\n';
+    });
+
+    xml += '</myanimelist>\n';
+    return new Blob([xml], { type: 'application/xml' });
+  }
+
+// --- GENERACIÓN DE XML PARA MYANIMELIST ---
+  async function generateMalXml() {
+    const alIds = animeList
+      .filter(a => a.id && a.id.toString().startsWith('al-'))
+      .map(a => parseInt(a.id.replace('al-', '')));
+
+    const idMap = {};
+
+    const chunkSize = 50;
+    for (let i = 0; i < alIds.length; i += chunkSize) {
+      const chunk = alIds.slice(i, i + chunkSize);
+      const query = `query ($in: [Int]) { Page(perPage: 50) { media(id_in: $in, type: ANIME) { id idMal } } }`;
+      try {
+        const resp = await fetchAniListGraphQL(query, { in: chunk });
+        if (resp.ok) {
+          const json = await resp.json();
+          if (json.data && json.data.Page && json.data.Page.media) {
+            json.data.Page.media.forEach(m => {
+              if (m.idMal) idMap[m.id] = m.idMal;
+            });
+          }
+        }
+      } catch (e) {
+        console.warn('Fallo al obtener lote de IDs', e);
+      }
+      await new Promise(r => setTimeout(r, 500));
+    }
+
+    let xml = '<?xml version="1.0" encoding="UTF-8" ?>\n';
+    xml += '<myanimelist>\n  <myinfo>\n';
+    xml += '    <user_export_type>1</user_export_type>\n';
+    xml += `    <user_total_anime>${animeList.length}</user_total_anime>\n`;
+    xml += '  </myinfo>\n';
+
+    animeList.forEach(a => {
+      let statusStr = 'Completed';
+      if (a.watchStatus === 'viendo') statusStr = 'Watching';
+      else if (a.watchStatus === 'por-ver') statusStr = 'Plan to Watch';
+      else if (a.watchStatus === 'pausado') statusStr = 'On-Hold';
+      else if (a.watchStatus === 'descartado') statusStr = 'Dropped';
+
+      let score = a.rating || 0;
+      if (score > 10) score = 10;
+
+      let watchedEps = a.currentEpisode || 0;
+      if (statusStr === 'Completed' && a.episodes && watchedEps === 0) {
+          watchedEps = a.episodes;
+      }
+
+      let malId = 0;
+      if (a.id && a.id.toString().startsWith('al-')) {
+        const rawId = parseInt(a.id.replace('al-', ''));
+        if (idMap[rawId]) malId = idMap[rawId];
+      }
+
+      const safeTitle = (a.title || '').replace(/]]>/g, ']]&gt;');
+      const safeNotes = (a.notes || '').replace(/]]>/g, ']]&gt;');
+
+      xml += '  <anime>\n';
+      xml += `    <series_animedb_id>${malId}</series_animedb_id>\n`;
+      xml += `    <series_title><![CDATA[${safeTitle}]]></series_title>\n`;
+      xml += `    <my_watched_episodes>${watchedEps}</my_watched_episodes>\n`;
+      xml += `    <my_score>${score}</my_score>\n`;
+      xml += `    <my_status>${statusStr}</my_status>\n`;
+      xml += '    <update_on_import>1</update_on_import>\n';
+      if (a.notes) {
+        xml += `    <my_tags><![CDATA[${safeNotes}]]></my_tags>\n`;
+      }
+      xml += '  </anime>\n';
+    });
+
+    xml += '</myanimelist>\n';
+    return new Blob([xml], { type: 'application/xml' });
+  }
+
+  // --- BOTÓN DE EXPORTAR A XML ---
+  if (el.exportXmlBtn) {
+    el.exportXmlBtn.addEventListener('click', async () => {
+      if (animeList.length === 0) {
+        setStatus('Tu animeteca está vacía, no hay nada que exportar todavía.', false);
+        return;
+      }
+      
+      el.exportXmlBtn.disabled = true;
+      const originalText = el.exportXmlBtn.textContent;
+      el.exportXmlBtn.textContent = 'Convirtiendo IDs a MAL...';
+      setStatus('Obteniendo IDs de MyAnimeList. Por favor espera, esto tomará unos 10 a 15 segundos...', false);
+      
+      try {
+        const xmlBlob = await generateMalXml();
+        const stamp = new Date().toISOString().slice(0, 10);
+        downloadBlob(xmlBlob, 'animeteca-mal-' + stamp + '.xml');
+        setStatus('Lista XML descargada correctamente. ¡Ya puedes importarla en MyAnimeList!', false);
+      } catch (e) {
+        setStatus('Hubo un error al generar el XML.', true);
+        console.error(e);
+      } finally {
+        el.exportXmlBtn.disabled = false;
+        el.exportXmlBtn.textContent = originalText;
+      }
+    });
+  }
 
 // Lógica del botón "Volver arriba"
   const scrollTopBtn = document.getElementById('scrollTopBtn');
